@@ -1,0 +1,57 @@
+# 占卜网 - 配置文件
+# 生产环境请修改所有敏感配置
+
+server:
+  port: 18080
+  mode: debug  # debug | release
+
+database:
+  # PostgreSQL connection (Docker default)
+  host: "localhost"
+  port: 15432
+  user: "zhanbu"
+  password: "20262026"
+  dbname: "zhanbu"
+  sslmode: "disable"
+  timezone: "Asia/Shanghai"
+
+jwt:
+  secret: "dev-secret-key-change-in-production"  # ⚠️ 必须修改！
+  access_ttl: 1h
+  refresh_ttl: 168h  # 7天
+
+ai:
+  provider: openai
+  api_key: ""           # 填入AI API Key
+  model: "gpt-4"
+  base_url: "https://api.openai.com/v1"
+  max_tokens: 1000
+  temperature: 0.7
+
+rate_limit:
+  ai_per_minute: 5
+  api_per_minute: 60
+
+cors:
+  allowed_origins:
+    - "http://localhost:5173"
+    - "http://localhost:5174"
+    - "http://localhost:5175"
+
+# ==================== SMTP 邮件配置 ====================
+# 推荐使用 QQ邮箱 或 163邮箱 的 SMTP 服务
+smtp:
+  enabled: true
+  host: "smtp.qq.com"
+  port: 465
+  username: "3951211757@qq.com"
+  password: "dntrveiawujccgbg"
+  from: "占卜网 <3951211757@qq.com>"
+  ssl: true
+
+# ==================== 安全配置 ====================
+security:
+  verify_email: true     # 注册时是否需要邮箱验证
+  code_length: 6         # 验证码长度
+  code_expiry: 10m       # 验证码有效期（10分钟）
+  max_send_per_hour: 5   # 每小时最多发送次数

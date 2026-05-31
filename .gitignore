@@ -1,0 +1,35 @@
+# Environment
+.env
+
+# Local agent/browser artifacts
+.openclaw/
+.playwright-cli/
+output/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Go
+server/server
+*.exe
+
+# Node
+client/node_modules/
+client/dist/
+
+# Database
+*.db
+*.sqlite
+
+# Local reference dumps
+/data/
+
+# Docker volumes (local)
+postgres-data/

@@ -1,0 +1,74 @@
+[
+  {
+    "id": 7,
+    "name": "乾",
+    "symbol": "☰",
+    "binary": 111,
+    "nature": "天",
+    "element": "金",
+    "yin_yang": "阳"
+  },
+  {
+    "id": 6,
+    "name": "兑",
+    "symbol": "☱",
+    "binary": 110,
+    "nature": "泽",
+    "element": "金",
+    "yin_yang": "阴"
+  },
+  {
+    "id": 5,
+    "name": "离",
+    "symbol": "☲",
+    "binary": 101,
+    "nature": "火",
+    "element": "火",
+    "yin_yang": "阴"
+  },
+  {
+    "id": 4,
+    "name": "震",
+    "symbol": "☳",
+    "binary": 100,
+    "nature": "雷",
+    "element": "木",
+    "yin_yang": "阳"
+  },
+  {
+    "id": 3,
+    "name": "巽",
+    "symbol": "☴",
+    "binary": 011,
+    "nature": "风",
+    "element": "木",
+    "yin_yang": "阴"
+  },
+  {
+    "id": 2,
+    "name": "坎",
+    "symbol": "☵",
+    "binary": 010,
+    "nature": "水",
+    "element": "水",
+    "yin_yang": "阳"
+  },
+  {
+    "id": 1,
+    "name": "艮",
+    "symbol": "☶",
+    "binary": 001,
+    "nature": "山",
+    "element": "土",
+    "yin_yang": "阳"
+  },
+  {
+    "id": 0,
+    "name": "坤",
+    "symbol": "☷",
+    "binary": 000,
+    "nature": "地",
+    "element": "土",
+    "yin_yang": "阴"
+  }
+]
