@@ -4,20 +4,6 @@ import { useAuthStore } from '../stores/authStore'
 
 const divinationTypes = [
   {
-    path: '/tarot',
-    icon: '🔮',
-    title: '塔罗牌占卜',
-    description: '通过塔罗牌的神秘图案，探索内心深处的答案，指引人生方向。',
-    gradient: 'from-purple-500 to-pink-500',
-  },
-  {
-    path: '/horoscope',
-    icon: '♈',
-    title: '星座运势',
-    description: '解读十二星座的每日运势，把握星象变化带来的机遇与挑战。',
-    gradient: 'from-amber-500 to-orange-500',
-  },
-  {
     path: '/liuyao',
     icon: '☰',
     title: '周易六爻',
@@ -30,6 +16,13 @@ const divinationTypes = [
     title: '八字排盘',
     description: '根据出生时辰推算八字，解读命运密码，规划人生蓝图。',
     gradient: 'from-blue-500 to-cyan-500',
+  },
+  {
+    path: '/tarot',
+    icon: '🔮',
+    title: '塔罗牌占卜',
+    description: '通过塔罗牌的神秘图案，探索内心深处的答案，指引人生方向。',
+    gradient: 'from-purple-500 to-pink-500',
   },
 ]
 
@@ -88,7 +81,7 @@ export default function Home() {
         >
           选择你的占卜方式
         </motion.h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {divinationTypes.map((type, index) => (
             <motion.div
               key={type.path}

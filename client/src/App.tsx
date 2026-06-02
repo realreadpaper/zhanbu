@@ -6,7 +6,6 @@ import ErrorBoundary from './components/ErrorBoundary'
 import ProtectedRoute from './components/ProtectedRoute'
 import Home from './pages/Home'
 import Tarot from './pages/Tarot'
-import Horoscope from './pages/Horoscope'
 import LiuYao from './pages/LiuYao'
 import LiuYaoV2 from './pages/LiuYaoV2'
 import BaZi from './pages/BaZi'
@@ -53,7 +52,6 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/tarot" element={<Tarot />} />
-          <Route path="/horoscope" element={<Horoscope />} />
           <Route path="/liuyao" element={<LiuYaoPage />} />
           <Route path="/bazi" element={<BaZi />} />
           <Route

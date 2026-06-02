@@ -2,10 +2,9 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
 
 const navItems = [
-  { path: '/tarot', label: '塔罗占卜' },
-  { path: '/horoscope', label: '星座运势' },
   { path: '/liuyao', label: '六爻占卜' },
   { path: '/bazi', label: '八字命理' },
+  { path: '/tarot', label: '塔罗占卜' },
 ]
 
 export default function Header() {

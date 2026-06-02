@@ -8,10 +8,9 @@ import 'react-day-picker/style.css'
 
 const typeFilters = [
   { value: '', label: '全部' },
-  { value: 'tarot', label: '塔罗牌' },
-  { value: 'horoscope', label: '星座运势' },
   { value: 'liuyao', label: '六爻' },
   { value: 'bazi', label: '八字' },
+  { value: 'tarot', label: '塔罗牌' },
 ]
 
 export default function History() {
@@ -95,7 +94,6 @@ export default function History() {
 
   const typeIcons: Record<string, string> = {
     tarot: '🔮',
-    horoscope: '♈',
     liuyao: '☯',
     bazi: '📜',
   }
