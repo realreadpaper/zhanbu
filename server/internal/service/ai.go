@@ -15,6 +15,8 @@ import (
 	"zhanbu/config"
 	"zhanbu/internal/model"
 	apperrors "zhanbu/pkg/errors"
+
+	"github.com/rs/zerolog/log"
 )
 
 //go:embed prompts/*.txt
@@ -61,7 +63,7 @@ func NewOpenAIProvider(cfg *config.AIConfig) (*OpenAIProvider, error) {
 
 // loadPrompts loads prompt templates from embedded files.
 func (p *OpenAIProvider) loadPrompts() error {
-	types := []string{"tarot", "horoscope", "liuyao", "bazi"}
+	types := []string{"tarot", "horoscope", "liuyao", "liuyao_v2", "bazi"}
 	for _, t := range types {
 		filename := fmt.Sprintf("prompts/%s_prompt.txt", t)
 		data, err := promptTemplates.ReadFile(filename)
@@ -86,15 +88,19 @@ func (p *OpenAIProvider) Interpret(divinationType string, result string, questio
 
 	// Build prompt from template
 	var promptBuf bytes.Buffer
-	err := tmpl.Execute(&promptBuf, map[string]string{
-		"Spread":  extractSpread(result),
-		"Zodiac":  extractZodiac(result),
-		"Period":  extractPeriod(result),
-		"Question": question,
-		"Result":  result,
-	})
+	err := tmpl.Execute(&promptBuf, buildPromptData(divinationType, result, question))
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute prompt template: %w", err)
+	}
+	if divinationType == "liuyao_v2" {
+		prompt := promptBuf.String()
+		log.Info().
+			Str("component", "ai").
+			Str("divination_type", divinationType).
+			Int("prompt_chars", len([]rune(prompt))).
+			Int("max_tokens", p.maxTokens).
+			Str("prompt", prompt).
+			Msg("prepared LiuYao v2 AI prompt")
 	}
 
 	// Make streaming API request
@@ -148,6 +154,7 @@ func (p *OpenAIProvider) Interpret(divinationType string, result string, questio
 		defer resp.Body.Close()
 
 		scanner := bufio.NewScanner(resp.Body)
+		var outputChars int
 		for scanner.Scan() {
 			line := scanner.Text()
 			if line == "" {
@@ -166,18 +173,145 @@ func (p *OpenAIProvider) Interpret(divinationType string, result string, questio
 					Delta struct {
 						Content string `json:"content"`
 					} `json:"delta"`
+					FinishReason string `json:"finish_reason"`
 				} `json:"choices"`
 			}
 			if err := json.Unmarshal([]byte(data), &chunk); err != nil {
+				log.Warn().
+					Str("component", "ai").
+					Str("divination_type", divinationType).
+					Err(err).
+					Str("raw_chunk", data).
+					Msg("failed to parse AI stream chunk")
 				continue
 			}
-			if len(chunk.Choices) > 0 && chunk.Choices[0].Delta.Content != "" {
-				ch <- chunk.Choices[0].Delta.Content
+			if len(chunk.Choices) > 0 {
+				if chunk.Choices[0].Delta.Content != "" {
+					outputChars += len([]rune(chunk.Choices[0].Delta.Content))
+					ch <- chunk.Choices[0].Delta.Content
+				}
+				if chunk.Choices[0].FinishReason != "" {
+					event := log.Info()
+					if chunk.Choices[0].FinishReason == "length" {
+						ch <- "\n\n【系统提示：AI 输出达到长度上限，请点击重新解读或调高 ZHANBU_AI_MAX_TOKENS 后重试。】"
+						event = log.Warn()
+					}
+					event.
+						Str("component", "ai").
+						Str("divination_type", divinationType).
+						Str("finish_reason", chunk.Choices[0].FinishReason).
+						Int("output_chars", outputChars).
+						Int("max_tokens", p.maxTokens).
+						Msg("AI stream finished")
+				}
 			}
+		}
+		if err := scanner.Err(); err != nil {
+			log.Warn().
+				Str("component", "ai").
+				Str("divination_type", divinationType).
+				Err(err).
+				Msg("AI stream scanner stopped with error")
 		}
 	}()
 
 	return ch, nil
+}
+
+func buildPromptData(divinationType string, result string, question string) map[string]string {
+	data := map[string]string{
+		"Spread":       extractSpread(result),
+		"Zodiac":       extractZodiac(result),
+		"Period":       extractPeriod(result),
+		"Question":     question,
+		"Result":       result,
+		"Method":       "",
+		"BenGua":       "",
+		"BianGua":      "无",
+		"MovingLines":  "无",
+		"BookEvidence": "无",
+		"MethodRules":  "无",
+	}
+	if divinationType != "liuyao_v2" {
+		return data
+	}
+
+	var reading struct {
+		Method       string                       `json:"method"`
+		BenGua       *model.TakashimaHexagram     `json:"ben_gua"`
+		BianGua      *model.TakashimaHexagram     `json:"bian_gua"`
+		MutableLines []int                        `json:"mutable_lines"`
+		BookEvidence *model.TakashimaBookEvidence `json:"book_evidence"`
+	}
+	if err := json.Unmarshal([]byte(result), &reading); err != nil {
+		return data
+	}
+
+	data["Method"] = reading.Method
+	data["BenGua"] = formatPromptHexagram(reading.BenGua)
+	data["BianGua"] = formatPromptHexagram(reading.BianGua)
+	data["MovingLines"] = formatPromptMovingLines(reading.BenGua, reading.MutableLines)
+	if reading.BookEvidence != nil {
+		data["BookEvidence"] = formatEvidenceSnippets(reading.BookEvidence.Snippets)
+		data["MethodRules"] = formatEvidenceSnippets(reading.BookEvidence.MethodRules)
+		log.Info().
+			Str("component", "ai").
+			Str("divination_type", "liuyao_v2").
+			Str("ben_gua", formatPromptHexagram(reading.BenGua)).
+			Str("bian_gua", formatPromptHexagram(reading.BianGua)).
+			Str("moving_lines", data["MovingLines"]).
+			Interface("prompt_book_evidence", summarizeEvidenceForLog(reading.BookEvidence.Snippets)).
+			Interface("prompt_method_rules", summarizeEvidenceForLog(reading.BookEvidence.MethodRules)).
+			Msg("using Takashima book evidence in AI prompt")
+	}
+	return data
+}
+
+func formatPromptHexagram(hexagram *model.TakashimaHexagram) string {
+	if hexagram == nil {
+		return "无"
+	}
+	if hexagram.FullName != "" {
+		return fmt.Sprintf("%s（%s上%s下）", hexagram.FullName, hexagram.UpperTrigram, hexagram.LowerTrigram)
+	}
+	return hexagram.Name
+}
+
+func formatPromptMovingLines(hexagram *model.TakashimaHexagram, mutableLines []int) string {
+	if hexagram == nil || len(mutableLines) == 0 {
+		return "无动爻，以本卦卦辞与卦象为主。"
+	}
+	parts := make([]string, 0, len(mutableLines))
+	for _, idx := range mutableLines {
+		position := idx + 1
+		for _, line := range hexagram.Lines {
+			if line.Position == position {
+				parts = append(parts, fmt.Sprintf("%s：%s", line.Name, line.Original))
+				break
+			}
+		}
+	}
+	if len(parts) == 0 {
+		return "动爻未匹配到书中爻辞。"
+	}
+	return strings.Join(parts, "\n")
+}
+
+func formatEvidenceSnippets(snippets []model.TakashimaEvidenceSnippet) string {
+	if len(snippets) == 0 {
+		return "无"
+	}
+	var b strings.Builder
+	for i, snippet := range snippets {
+		if i > 0 {
+			b.WriteString("\n\n")
+		}
+		b.WriteString("【")
+		b.WriteString(snippet.Title)
+		b.WriteString("】\n")
+		b.WriteString(snippet.Text)
+	}
+	return b.String()
 }
 
 // extractSpread extracts spread name from tarot result JSON.

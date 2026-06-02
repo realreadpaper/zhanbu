@@ -5,6 +5,8 @@
 .openclaw/
 .playwright-cli/
 output/
+tmp/
+scripts/extracted_texts/
 
 # IDE
 .idea/

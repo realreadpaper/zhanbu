@@ -18,6 +18,7 @@ type Config struct {
 	CORS      CORSConfig      `mapstructure:"cors"`
 	SMTP      SMTPConfig      `mapstructure:"smtp"`
 	Security  SecurityConfig  `mapstructure:"security"`
+	LiuYao    LiuYaoConfig    `mapstructure:"liuyao"`
 }
 
 // SMTPConfig holds email configuration.
@@ -37,6 +38,12 @@ type SecurityConfig struct {
 	CodeLength     int           `mapstructure:"code_length"`
 	CodeExpiry     time.Duration `mapstructure:"code_expiry"`
 	MaxSendPerHour int           `mapstructure:"max_send_per_hour"`
+}
+
+// LiuYaoConfig holds LiuYao divination configuration.
+type LiuYaoConfig struct {
+	Version string `mapstructure:"version"` // v1=traditional, v2=takashima
+	Method  string `mapstructure:"method"`  // yarrow=蓍草法, coin=铜钱法, both=两种都支持
 }
 
 // ServerConfig holds server-related configuration.
@@ -130,11 +137,12 @@ func LoadFromEnv() *Config {
 		Server:    ServerConfig{Port: 18080, Mode: "debug"},
 		Database:  DatabaseConfig{Host: "localhost", Port: 15432, User: "zhanbu", Password: "zhanbu_secret", DBName: "zhanbu", SSLMode: "disable", Timezone: "Asia/Shanghai"},
 		JWT:       JWTConfig{Secret: "dev-secret-key-change-in-production", AccessTTL: time.Hour, RefreshTTL: 7 * 24 * time.Hour},
-		AI:        AIConfig{Provider: "openai", APIKey: "", Model: "gpt-4", BaseURL: "https://api.openai.com/v1", MaxTokens: 1000, Temperature: 0.7},
+		AI:        AIConfig{Provider: "openai", APIKey: "", Model: "gpt-4", BaseURL: "https://api.openai.com/v1", MaxTokens: 3000, Temperature: 0.7},
 		RateLimit: RateLimitConfig{AIPerMinute: 5, APIPerMinute: 60},
 		CORS:      CORSConfig{AllowedOrigins: []string{"http://localhost:5173"}},
 		SMTP:      SMTPConfig{Enabled: false, Host: "smtp.qq.com", Port: 465, SSL: true},
 		Security:  SecurityConfig{VerifyEmail: false, CodeLength: 6, CodeExpiry: 10 * time.Minute, MaxSendPerHour: 5},
+		LiuYao:    LiuYaoConfig{Version: "v1", Method: "both"},
 	}
 
 	if v := os.Getenv("ZHANBU_SERVER_PORT"); v != "" {
@@ -201,6 +209,12 @@ func LoadFromEnv() *Config {
 	if v := os.Getenv("ZHANBU_AI_TEMPERATURE"); v != "" {
 		fmt.Sscanf(v, "%f", &cfg.AI.Temperature)
 	}
+	if v := os.Getenv("ZHANBU_LIUYAO_VERSION"); v != "" {
+		cfg.LiuYao.Version = v
+	}
+	if v := os.Getenv("ZHANBU_LIUYAO_METHOD"); v != "" {
+		cfg.LiuYao.Method = v
+	}
 
 	return cfg
 }
@@ -233,7 +247,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("ai.api_key", "")
 	v.SetDefault("ai.model", "gpt-4")
 	v.SetDefault("ai.base_url", "https://api.openai.com/v1")
-	v.SetDefault("ai.max_tokens", 1000)
+	v.SetDefault("ai.max_tokens", 3000)
 	v.SetDefault("ai.temperature", 0.7)
 	v.SetDefault("rate_limit.ai_per_minute", 5)
 	v.SetDefault("rate_limit.api_per_minute", 60)
@@ -246,4 +260,6 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("security.code_length", 6)
 	v.SetDefault("security.code_expiry", "10m")
 	v.SetDefault("security.max_send_per_hour", 5)
+	v.SetDefault("liuyao.version", "v1")
+	v.SetDefault("liuyao.method", "both")
 }

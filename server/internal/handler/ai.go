@@ -27,8 +27,8 @@ type AIHandler struct {
 
 // rateBucket tracks request counts for rate limiting.
 type rateBucket struct {
-	count    int
-	resetAt  time.Time
+	count   int
+	resetAt time.Time
 }
 
 // NewAIHandler creates a new AIHandler.
@@ -86,7 +86,7 @@ func (h *AIHandler) checkRateLimit(key string) bool {
 type InterpretRequest struct {
 	Type     string `json:"type" binding:"required"`
 	ResultID uint   `json:"result_id"`
-	Result   string `json:"result"`   // Direct result JSON (alternative to result_id)
+	Result   string `json:"result"` // Direct result JSON (alternative to result_id)
 	Question string `json:"question"`
 }
 
@@ -106,7 +106,7 @@ func (h *AIHandler) Interpret(c *gin.Context) {
 
 	// Validate divination type
 	validTypes := map[string]bool{
-		"tarot": true, "horoscope": true, "liuyao": true, "bazi": true,
+		"tarot": true, "horoscope": true, "liuyao": true, "liuyao_v2": true, "bazi": true,
 	}
 	if !validTypes[req.Type] {
 		response.Error(c, http.StatusBadRequest, apperrors.ErrBadRequest, "invalid divination type")

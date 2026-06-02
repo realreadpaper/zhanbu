@@ -118,6 +118,21 @@ func SetupRouter(db *gorm.DB, cfg *config.Config, logger zerolog.Logger) *gin.En
 		liuyaoGroup.POST("/throw", authMiddleware, liuyaoHandler.Throw)
 	}
 
+	// LiuYao v2 (高岛易断) routes
+	liuyaoV2Service, err := service.NewLiuYaoV2Service(cfg.LiuYao.Method)
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to initialize LiuYao v2 service")
+	} else {
+		liuyaoV2Handler := handler.NewLiuYaoV2Handler(liuyaoV2Service, divinationRepo)
+		liuyaoV2Group := r.Group("/api/liuyao/v2")
+		{
+			liuyaoV2Group.GET("/hexagrams", liuyaoV2Handler.GetHexagrams)
+			liuyaoV2Group.GET("/hexagrams/:id", liuyaoV2Handler.GetHexagramByID)
+			liuyaoV2Group.GET("/config", liuyaoV2Handler.GetConfig)
+			liuyaoV2Group.POST("/throw", authMiddleware, liuyaoV2Handler.Throw)
+		}
+	}
+
 	// BaZi (八字) routes
 	baziService := service.NewBaZiService()
 	baziHandler := handler.NewBaZiHandler(baziService, divinationRepo)
