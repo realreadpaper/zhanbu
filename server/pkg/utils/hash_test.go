@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func TestHashPassword(t *testing.T) {
@@ -19,6 +20,17 @@ func TestHashPassword(t *testing.T) {
 		hash, err := HashPassword("mypassword")
 		assert.NoError(t, err)
 		assert.Contains(t, hash, "$2a$")
+	})
+
+	t.Run("honors bcrypt cost from environment", func(t *testing.T) {
+		t.Setenv("ZHANBU_BCRYPT_COST", "4")
+
+		hash, err := HashPassword("mypassword")
+		assert.NoError(t, err)
+
+		cost, err := bcrypt.Cost([]byte(hash))
+		assert.NoError(t, err)
+		assert.Equal(t, 4, cost)
 	})
 }
 

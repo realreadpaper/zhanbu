@@ -98,6 +98,7 @@ zhanbu/
 | `AI_BASE_URL` | AI API 地址 | `https://api.openai.com/v1` |
 | `PORT` | Render 注入的后端监听端口 | `18080` |
 | `ZHANBU_SERVER_PORT` | 后端监听端口，优先级高于 `PORT` | `18080` |
+| `ZHANBU_BCRYPT_COST` | 注册/登录密码哈希成本；Render 低配实例可设为 `8` 或 `10` | `10` |
 | `ZHANBU_CORS_ALLOWED_ORIGINS` | 允许访问后端的前端域名，逗号分隔 | `http://localhost:5173` |
 | `VITE_API_BASE_URL` | Vercel 前端调用的 API 前缀，例如 `https://your-api.onrender.com/api` | `/api` |
 
