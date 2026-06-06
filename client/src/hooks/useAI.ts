@@ -76,12 +76,18 @@ export function useAI({ type, resultId, result, question, autoStart = false }: U
 
   // Auto-start if requested
   useEffect(() => {
+    let timeoutId: number | undefined
     if (autoStart && (resultId || result)) {
-      start()
+      timeoutId = window.setTimeout(() => {
+        start()
+      }, 0)
     }
 
     // Cleanup on unmount
     return () => {
+      if (timeoutId !== undefined) {
+        window.clearTimeout(timeoutId)
+      }
       if (cleanupRef.current) {
         cleanupRef.current()
       }

@@ -21,7 +21,7 @@ func setupTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&model.User{}))
+	require.NoError(t, db.AutoMigrate(&model.User{}, &model.EmailVerification{}, &model.SendLog{}))
 	return db
 }
 
@@ -36,7 +36,16 @@ func setupAuthService(t *testing.T) (*AuthService, *gorm.DB) {
 		RefreshTTL: 7 * 24 * time.Hour,
 	}
 	jwtManager := utils.NewJWTManager(jwtConfig.Secret, jwtConfig.AccessTTL, jwtConfig.RefreshTTL)
-	svc := NewAuthService(userRepo, jwtManager, &jwtConfig)
+	verRepo := repository.NewVerificationRepository(db)
+	smtpConfig := config.SMTPConfig{Enabled: false}
+	securityConfig := config.SecurityConfig{
+		VerifyEmail:    false,
+		CodeLength:     6,
+		CodeExpiry:     10 * time.Minute,
+		MaxSendPerHour: 5,
+	}
+	emailService := NewEmailService(verRepo, &smtpConfig, &securityConfig)
+	svc := NewAuthService(userRepo, jwtManager, &jwtConfig, emailService, &securityConfig, &smtpConfig)
 	return svc, db
 }
 
@@ -50,13 +59,14 @@ func TestAuthService_Register(t *testing.T) {
 			Password: "password123",
 		}
 
-		user, appErr := svc.Register(req)
+		result, appErr := svc.Register(req)
 		require.Nil(t, appErr)
-		require.NotNil(t, user)
-		assert.Equal(t, "testuser", user.Username)
-		assert.Equal(t, "test@example.com", user.Email)
-		assert.NotZero(t, user.ID)
-		assert.NotZero(t, user.CreatedAt)
+		require.NotNil(t, result)
+		assert.Equal(t, "testuser", result.User.Username)
+		assert.Equal(t, "test@example.com", result.User.Email)
+		assert.NotZero(t, result.User.ID)
+		assert.NotZero(t, result.User.CreatedAt)
+		assert.False(t, result.NeedVerify)
 	})
 
 	t.Run("reject duplicate email", func(t *testing.T) {
@@ -148,9 +158,9 @@ func TestAuthService_Register(t *testing.T) {
 			Email:    "Test@Example.COM",
 			Password: "password123",
 		}
-		user, appErr := svc.Register(req)
+		result, appErr := svc.Register(req)
 		require.Nil(t, appErr)
-		assert.Equal(t, "test@example.com", user.Email)
+		assert.Equal(t, "test@example.com", result.User.Email)
 	})
 }
 
@@ -248,17 +258,17 @@ func TestAuthService_GetProfile(t *testing.T) {
 	t.Run("successfully get user profile", func(t *testing.T) {
 		svc, _ := setupAuthService(t)
 
-		user, appErr := svc.Register(&RegisterRequest{
+		result, appErr := svc.Register(&RegisterRequest{
 			Username: "testuser",
 			Email:    "test@example.com",
 			Password: "password123",
 		})
 		require.Nil(t, appErr)
 
-		profile, appErr := svc.GetProfile(user.ID)
+		profile, appErr := svc.GetProfile(result.User.ID)
 		require.Nil(t, appErr)
 		require.NotNil(t, profile)
-		assert.Equal(t, user.ID, profile.ID)
+		assert.Equal(t, result.User.ID, profile.ID)
 		assert.Equal(t, "testuser", profile.Username)
 	})
 
@@ -275,13 +285,13 @@ func TestAuthService_UpdateProfile(t *testing.T) {
 	t.Run("successfully update username", func(t *testing.T) {
 		svc, _ := setupAuthService(t)
 
-		user, _ := svc.Register(&RegisterRequest{
+		result, _ := svc.Register(&RegisterRequest{
 			Username: "testuser",
 			Email:    "test@example.com",
 			Password: "password123",
 		})
 
-		updated, appErr := svc.UpdateProfile(user.ID, &UpdateProfileRequest{
+		updated, appErr := svc.UpdateProfile(result.User.ID, &UpdateProfileRequest{
 			Username: "newusername",
 		})
 		require.Nil(t, appErr)
@@ -291,13 +301,13 @@ func TestAuthService_UpdateProfile(t *testing.T) {
 	t.Run("successfully update avatar and zodiac", func(t *testing.T) {
 		svc, _ := setupAuthService(t)
 
-		user, _ := svc.Register(&RegisterRequest{
+		result, _ := svc.Register(&RegisterRequest{
 			Username: "testuser",
 			Email:    "test@example.com",
 			Password: "password123",
 		})
 
-		updated, appErr := svc.UpdateProfile(user.ID, &UpdateProfileRequest{
+		updated, appErr := svc.UpdateProfile(result.User.ID, &UpdateProfileRequest{
 			Avatar: "https://example.com/avatar.jpg",
 			Zodiac: "aries",
 		})

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { DayPicker, type DateRange } from 'react-day-picker'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale/zh-CN'
-import { fetchHistory, deleteHistory, type HistoryItem, type HistoryListResponse } from '../services/history'
+import { fetchHistory, deleteHistory, type HistoryListResponse } from '../services/history'
 import 'react-day-picker/style.css'
 
 const typeFilters = [
@@ -41,7 +41,13 @@ export default function History() {
   }, [])
 
   useEffect(() => {
-    loadData(activeType, page, dateRange)
+    const timeoutId = window.setTimeout(() => {
+      loadData(activeType, page, dateRange)
+    }, 0)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
   }, [activeType, page, dateRange, loadData])
 
   const handleFilterChange = (type: string) => {

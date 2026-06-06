@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { drawCards } from '../services/tarot'
-import type { DrawnCard, DrawResult } from '../types/tarot'
+import type { DrawResult } from '../types/tarot'
 
 export type DivinationPhase = 'input' | 'drawing' | 'result'
 

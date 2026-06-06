@@ -47,6 +47,7 @@ func SetupRouter(db *gorm.DB, cfg *config.Config, logger zerolog.Logger) *gin.En
 	{
 		authGroup.POST("/register", authHandler.Register)
 		authGroup.POST("/login", authHandler.Login)
+		authGroup.POST("/refresh", authHandler.RefreshToken)
 		authGroup.POST("/verify-email", authHandler.VerifyEmail)
 		authGroup.POST("/resend-verification", authHandler.ResendVerification)
 	}
@@ -55,7 +56,6 @@ func SetupRouter(db *gorm.DB, cfg *config.Config, logger zerolog.Logger) *gin.En
 	authProtected := r.Group("/api/auth")
 	authProtected.Use(authMiddleware)
 	{
-		authProtected.POST("/refresh", authHandler.RefreshToken)
 		authProtected.GET("/profile", authHandler.GetProfile)
 		authProtected.PUT("/profile", authHandler.UpdateProfile)
 	}

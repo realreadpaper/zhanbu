@@ -1,7 +1,13 @@
 import axios from 'axios'
 
+export const apiBaseURL = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '')
+
+export function apiURL(path: string) {
+  return `${apiBaseURL}${path.startsWith('/') ? path : `/${path}`}`
+}
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: apiBaseURL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -97,7 +103,7 @@ api.interceptors.response.use(
     }
 
     try {
-      const { data } = await axios.post('/api/auth/refresh', {
+      const { data } = await axios.post(apiURL('/auth/refresh'), {
         refresh_token: refreshToken,
       })
 

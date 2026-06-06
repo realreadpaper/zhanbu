@@ -41,12 +41,12 @@ cors:
 # ==================== SMTP 邮件配置 ====================
 # 推荐使用 QQ邮箱 或 163邮箱 的 SMTP 服务
 smtp:
-  enabled: true
+  enabled: false
   host: "smtp.qq.com"
   port: 465
-  username: "3951211757@qq.com"
-  password: "dntrveiawujccgbg"
-  from: "占卜网 <3951211757@qq.com>"
+  username: ""
+  password: ""
+  from: ""
   ssl: true
 
 # ==================== 安全配置 ====================

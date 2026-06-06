@@ -1,9 +1,6 @@
 # Build stage
 FROM golang:1.26-alpine AS builder
 
-# Install build dependencies (no SQLite needed - using PostgreSQL)
-RUN apk add --no-cache gcc musl-dev
-
 # Set working directory
 WORKDIR /build
 
@@ -17,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build the binary (CGO not needed for pure Go PostgreSQL driver)
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o server .
+RUN CGO_ENABLED=0 GOOS=linux go build -o server .
 
 # Runtime stage
 FROM alpine:3.19
@@ -47,12 +44,9 @@ RUN mkdir -p /app/data && chown -R app:app /app
 # Switch to non-root user
 USER app
 
-# Expose port
-EXPOSE 8080
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/api/health || exit 1
+# Expose Render's default web-service port. Local docker-compose overrides the
+# application port with ZHANBU_SERVER_PORT=8080 and maps it to localhost:18080.
+EXPOSE 10000
 
 # Run the server
 CMD ["./server"]

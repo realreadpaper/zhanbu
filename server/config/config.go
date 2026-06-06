@@ -3,6 +3,8 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/spf13/viper"
@@ -145,8 +147,15 @@ func LoadFromEnv() *Config {
 		LiuYao:    LiuYaoConfig{Version: "v1", Method: "both"},
 	}
 
+	if v := os.Getenv("PORT"); v != "" {
+		if port, err := strconv.Atoi(v); err == nil {
+			cfg.Server.Port = port
+		}
+	}
 	if v := os.Getenv("ZHANBU_SERVER_PORT"); v != "" {
-		fmt.Sscanf(v, "%d", &cfg.Server.Port)
+		if port, err := strconv.Atoi(v); err == nil {
+			cfg.Server.Port = port
+		}
 	}
 	if v := os.Getenv("ZHANBU_SERVER_MODE"); v != "" {
 		cfg.Server.Mode = v
@@ -175,6 +184,9 @@ func LoadFromEnv() *Config {
 	if v := os.Getenv("ZHANBU_SMTP_HOST"); v != "" {
 		cfg.SMTP.Enabled = true
 		cfg.SMTP.Host = v
+	}
+	if v := os.Getenv("ZHANBU_SMTP_ENABLED"); v != "" {
+		cfg.SMTP.Enabled = v == "true" || v == "1"
 	}
 	if v := os.Getenv("ZHANBU_SMTP_USERNAME"); v != "" {
 		cfg.SMTP.Username = v
@@ -209,6 +221,9 @@ func LoadFromEnv() *Config {
 	if v := os.Getenv("ZHANBU_AI_TEMPERATURE"); v != "" {
 		fmt.Sscanf(v, "%f", &cfg.AI.Temperature)
 	}
+	if v := os.Getenv("ZHANBU_CORS_ALLOWED_ORIGINS"); v != "" {
+		cfg.CORS.AllowedOrigins = splitCommaSeparated(v)
+	}
 	if v := os.Getenv("ZHANBU_LIUYAO_VERSION"); v != "" {
 		cfg.LiuYao.Version = v
 	}
@@ -217,6 +232,18 @@ func LoadFromEnv() *Config {
 	}
 
 	return cfg
+}
+
+func splitCommaSeparated(value string) []string {
+	parts := strings.Split(value, ",")
+	items := make([]string, 0, len(parts))
+	for _, part := range parts {
+		item := strings.TrimSpace(part)
+		if item != "" {
+			items = append(items, item)
+		}
+	}
+	return items
 }
 
 // GetDataDir returns the data directory path for static data files.

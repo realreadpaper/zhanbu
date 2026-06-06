@@ -39,3 +39,22 @@ func TestSetupRouter_AIInterpretRouteExistsWhenProviderUnavailable(t *testing.T)
 	assert.Equal(t, http.StatusServiceUnavailable, rec.Code)
 	assert.Contains(t, rec.Body.String(), "AI service is not configured")
 }
+
+func TestSetupRouter_RefreshTokenRouteDoesNotRequireAccessToken(t *testing.T) {
+	cfg := &config.Config{
+		Server:    config.ServerConfig{Mode: "test"},
+		JWT:       config.JWTConfig{Secret: "test-secret", AccessTTL: time.Hour, RefreshTTL: time.Hour},
+		AI:        config.AIConfig{APIKey: ""},
+		RateLimit: config.RateLimitConfig{APIPerMinute: 60},
+	}
+	r := SetupRouter(nil, cfg, zerolog.Nop())
+
+	body := bytes.NewBufferString(`{}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	r.ServeHTTP(rec, req)
+
+	assert.Contains(t, rec.Body.String(), "refresh_token is required")
+}

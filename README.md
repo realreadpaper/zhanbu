@@ -50,8 +50,8 @@ docker-compose up -d
 ### 4. 访问应用
 
 - **前端**: http://localhost
-- **API**: http://localhost:8080
-- **健康检查**: http://localhost:8080/api/health
+- **API**: http://localhost:18080
+- **健康检查**: http://localhost:18080/api/health
 
 ## 📁 项目结构
 
@@ -96,6 +96,17 @@ zhanbu/
 | `AI_API_KEY` | OpenAI API Key | 空 |
 | `AI_MODEL` | AI 模型名称 | `gpt-4` |
 | `AI_BASE_URL` | AI API 地址 | `https://api.openai.com/v1` |
+| `PORT` | Render 注入的后端监听端口 | `18080` |
+| `ZHANBU_SERVER_PORT` | 后端监听端口，优先级高于 `PORT` | `18080` |
+| `ZHANBU_CORS_ALLOWED_ORIGINS` | 允许访问后端的前端域名，逗号分隔 | `http://localhost:5173` |
+| `VITE_API_BASE_URL` | Vercel 前端调用的 API 前缀，例如 `https://your-api.onrender.com/api` | `/api` |
+
+### Render + Vercel 部署要点
+
+- Render 后端使用 `server/Dockerfile`，数据库请使用 Render PostgreSQL 或 Neon/Supabase 等外部 PostgreSQL，不要把 Postgres 放进同一个 Web Service 容器。
+- Render 后端环境变量至少设置：`ZHANBU_SERVER_MODE=release`、`ZHANBU_JWT_SECRET`、`ZHANBU_DB_HOST`、`ZHANBU_DB_PORT`、`ZHANBU_DB_USER`、`ZHANBU_DB_PASSWORD`、`ZHANBU_DB_NAME`、`ZHANBU_DB_SSLMODE=require`、`ZHANBU_CORS_ALLOWED_ORIGINS=https://your-app.vercel.app`、`ZHANBU_AI_API_KEY`、`ZHANBU_AI_MODEL`、`ZHANBU_AI_BASE_URL`。
+- Vercel 前端项目根目录选 `client`，构建命令 `npm run build`，输出目录 `dist`，环境变量设置 `VITE_API_BASE_URL=https://your-render-service.onrender.com/api`。
+- 本地开发不设置 `VITE_API_BASE_URL` 时，前端继续请求 `/api`，由 Vite 代理到 `http://localhost:18080`；Docker Compose 版继续由 Nginx 代理到 `api:8080`。
 
 ### 数据持久化
 

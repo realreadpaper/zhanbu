@@ -1,4 +1,4 @@
-import api from './api'
+import { apiURL } from './api'
 
 export interface InterpretRequest {
   type: string
@@ -28,7 +28,7 @@ export function interpretStream(
 
   const fetchData = async () => {
     try {
-      const response = await fetch('/api/ai/interpret', {
+      const response = await fetch(apiURL('/ai/interpret'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
