@@ -65,6 +65,7 @@ check_env() {
 do_build() {
     title "构建镜像"
     cd "$PROJECT_DIR"
+    check_env
     $COMPOSE_CMD build --no-cache
     ok "镜像构建完成"
 }
@@ -77,8 +78,8 @@ do_start() {
     cd "$PROJECT_DIR"
     check_env
 
-    info "启动所有服务..."
-    $COMPOSE_CMD up -d
+    info "构建并启动所有服务..."
+    $COMPOSE_CMD up -d --build
 
     info "等待服务就绪..."
     sleep 5
