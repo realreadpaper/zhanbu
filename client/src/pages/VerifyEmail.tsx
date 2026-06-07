@@ -2,6 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { emailApi } from '../services/email'
+import { useAuthStore } from '../stores/authStore'
 
 export default function VerifyEmail() {
   const [searchParams] = useSearchParams()
@@ -12,6 +13,7 @@ export default function VerifyEmail() {
   const [isLoading, setIsLoading] = useState(false)
   const [resendCooldown, setResendCooldown] = useState(0)
   const navigate = useNavigate()
+  const clearAuthError = useAuthStore((state) => state.clearError)
 
   // Countdown timer for resend button
   useEffect(() => {
@@ -45,6 +47,7 @@ export default function VerifyEmail() {
     try {
       const { data: res } = await emailApi.verifyEmail(email, code.trim())
       if (res.code === 0) {
+        clearAuthError()
         setSuccess(true)
         setTimeout(() => navigate('/login'), 2000)
       } else {

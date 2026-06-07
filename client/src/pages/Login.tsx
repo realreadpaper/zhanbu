@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuthStore } from '../stores/authStore'
@@ -11,6 +11,10 @@ export default function Login() {
   const navigate = useNavigate()
 
   const isEmailNotVerified = errorCode === 2008
+
+  useEffect(() => {
+    clearError()
+  }, [clearError])
 
   const validate = (): boolean => {
     if (!email.trim()) {
