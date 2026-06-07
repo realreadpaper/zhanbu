@@ -18,7 +18,7 @@ export interface AIReadingProps {
  * AIReading component displays an AI interpretation button and streaming result.
  */
 export default function AIReading({ type, resultId, result, question, show = true }: AIReadingProps) {
-  const { text, isStreaming, isDone, error, start, reset } = useAI({
+  const { text, isStreaming, isDone, error, start } = useAI({
     type,
     resultId,
     result,
@@ -28,6 +28,11 @@ export default function AIReading({ type, resultId, result, question, show = tru
   if (!show) return null
 
   const hasEmptyDone = isDone && !text.trim()
+  const isIncomplete = isDone && (
+    text.includes('AI 输出达到长度上限') ||
+    text.includes('AI 解读连接中断') ||
+    text.includes('内容可能未完整生成')
+  )
 
   return (
     <div className="mt-8">
@@ -41,7 +46,7 @@ export default function AIReading({ type, resultId, result, question, show = tru
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            onClick={start}
+            onClick={() => start()}
             disabled={isStreaming || (!resultId && !result)}
             className="px-8 py-4 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-xl font-bold text-lg shadow-lg shadow-violet-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
@@ -79,7 +84,7 @@ export default function AIReading({ type, resultId, result, question, show = tru
           >
             <p>{error}</p>
             <button
-              onClick={start}
+              onClick={() => start()}
               className="mt-3 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-lg text-sm transition-colors"
             >
               重试
@@ -99,7 +104,7 @@ export default function AIReading({ type, resultId, result, question, show = tru
           >
             <p>AI未返回解读内容，请检查提示词或稍后重试</p>
             <button
-              onClick={start}
+              onClick={() => start()}
               className="mt-3 px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 rounded-lg text-sm transition-colors"
             >
               重试
@@ -138,7 +143,7 @@ export default function AIReading({ type, resultId, result, question, show = tru
 
               {isDone && (
                 <button
-                  onClick={reset}
+                  onClick={() => start(true)}
                   className="text-slate-400 hover:text-white text-sm transition-colors"
                 >
                   重新解读
@@ -183,7 +188,30 @@ export default function AIReading({ type, resultId, result, question, show = tru
               )}
 
               {/* Done indicator */}
-              {isDone && (
+              {isIncomplete && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="mt-4 flex items-center gap-2 text-amber-300 text-sm"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                  <span>解读未完整</span>
+                </motion.div>
+              )}
+
+              {isDone && !isIncomplete && (
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}

@@ -65,7 +65,7 @@ func TestAIService_Interpret_Success(t *testing.T) {
 
 	svc := NewAIService(provider, reader)
 
-	ch, err := svc.Interpret(1, 1, "tarot", "")
+	ch, err := svc.Interpret(1, 1, "tarot", "", false)
 	require.NoError(t, err)
 	require.NotNil(t, ch)
 
@@ -79,13 +79,39 @@ func TestAIService_Interpret_Success(t *testing.T) {
 	assert.Equal(t, "这是一个测试解读", reader.reading[1])
 }
 
+func TestAIService_Interpret_DoesNotSaveIncompleteReading(t *testing.T) {
+	provider := &MockAIProvider{Response: "前半段解读\n\n【系统提示：AI 输出达到长度上限，请稍后重新解读。】"}
+	reader := NewMockResultReader()
+
+	reader.records[1] = &model.DivinationRecord{
+		ID:       1,
+		UserID:   1,
+		Type:     "liuyao_v2",
+		Question: "关系能长久吗",
+		Result:   `{"method":"coins","ben_gua":{"name":"乾"}}`,
+	}
+
+	svc := NewAIService(provider, reader)
+
+	ch, err := svc.Interpret(1, 1, "liuyao_v2", "", false)
+	require.NoError(t, err)
+
+	var fullReading string
+	for chunk := range ch {
+		fullReading += chunk
+	}
+
+	assert.Contains(t, fullReading, "AI 输出达到长度上限")
+	assert.Empty(t, reader.reading[1])
+}
+
 func TestAIService_Interpret_RecordNotFound(t *testing.T) {
 	provider := &MockAIProvider{Response: "test"}
 	reader := NewMockResultReader()
 
 	svc := NewAIService(provider, reader)
 
-	_, err := svc.Interpret(1, 999, "tarot", "")
+	_, err := svc.Interpret(1, 999, "tarot", "", false)
 	assert.Error(t, err)
 }
 
@@ -118,7 +144,7 @@ func TestAIService_Interpret_ExistingReading(t *testing.T) {
 
 	svc := NewAIService(provider, reader)
 
-	ch, err := svc.Interpret(1, 1, "tarot", "")
+	ch, err := svc.Interpret(1, 1, "tarot", "", false)
 	require.NoError(t, err)
 
 	// Should get the existing reading
@@ -128,6 +154,33 @@ func TestAIService_Interpret_ExistingReading(t *testing.T) {
 	}
 
 	assert.Equal(t, "existing reading", result)
+}
+
+func TestAIService_Interpret_ForceRegeneratesExistingReading(t *testing.T) {
+	provider := &MockAIProvider{Response: "new reading"}
+	reader := NewMockResultReader()
+
+	reader.records[1] = &model.DivinationRecord{
+		ID:        1,
+		UserID:    1,
+		Type:      "liuyao_v2",
+		Question:  "test",
+		Result:    "{}",
+		AIReading: "old partial reading",
+	}
+
+	svc := NewAIService(provider, reader)
+
+	ch, err := svc.Interpret(1, 1, "liuyao_v2", "", true)
+	require.NoError(t, err)
+
+	var result string
+	for chunk := range ch {
+		result += chunk
+	}
+
+	assert.Equal(t, "new reading", result)
+	assert.Equal(t, "new reading", reader.reading[1])
 }
 
 func TestMockAIProvider_Interpret(t *testing.T) {
@@ -245,7 +298,7 @@ func TestAIService_Interpret_WithQuestion(t *testing.T) {
 	svc := NewAIService(provider, reader)
 
 	// Test with custom question
-	ch, err := svc.Interpret(1, 1, "tarot", "自定义问题")
+	ch, err := svc.Interpret(1, 1, "tarot", "自定义问题", false)
 	require.NoError(t, err)
 
 	var result string
@@ -255,4 +308,3 @@ func TestAIService_Interpret_WithQuestion(t *testing.T) {
 
 	assert.NotEmpty(t, result)
 }
-

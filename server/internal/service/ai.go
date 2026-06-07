@@ -22,6 +22,12 @@ import (
 //go:embed prompts/*.txt
 var promptTemplates embed.FS
 
+const (
+	aiHTTPTimeout              = 300 * time.Second
+	incompleteLengthNotice     = "\n\n【系统提示：AI 输出达到长度上限，内容可能未完整生成，请稍后重新解读，或调高 AI_MAX_TOKENS 后重试。】"
+	incompleteConnectionNotice = "\n\n【系统提示：AI 解读连接中断，内容可能未完整生成，请稍后重新解读。】"
+)
+
 // AIProvider defines the interface for AI service providers.
 type AIProvider interface {
 	// Interpret generates an AI interpretation for a divination result.
@@ -49,7 +55,7 @@ func NewOpenAIProvider(cfg *config.AIConfig) (*OpenAIProvider, error) {
 		maxTokens:   cfg.MaxTokens,
 		temperature: cfg.Temperature,
 		client: &http.Client{
-			Timeout: 60 * time.Second,
+			Timeout: aiHTTPTimeout,
 		},
 		prompts: make(map[string]*template.Template),
 	}
@@ -155,6 +161,7 @@ func (p *OpenAIProvider) Interpret(divinationType string, result string, questio
 
 		scanner := bufio.NewScanner(resp.Body)
 		var outputChars int
+		var finished bool
 		for scanner.Scan() {
 			line := scanner.Text()
 			if line == "" {
@@ -165,6 +172,7 @@ func (p *OpenAIProvider) Interpret(divinationType string, result string, questio
 			}
 			data := strings.TrimPrefix(line, "data: ")
 			if data == "[DONE]" {
+				finished = true
 				return
 			}
 
@@ -193,9 +201,10 @@ func (p *OpenAIProvider) Interpret(divinationType string, result string, questio
 				if chunk.Choices[0].FinishReason != "" {
 					event := log.Info()
 					if chunk.Choices[0].FinishReason == "length" {
-						ch <- "\n\n【系统提示：AI 输出达到长度上限，请点击重新解读或调高 ZHANBU_AI_MAX_TOKENS 后重试。】"
+						ch <- incompleteLengthNotice
 						event = log.Warn()
 					}
+					finished = true
 					event.
 						Str("component", "ai").
 						Str("divination_type", divinationType).
@@ -207,11 +216,18 @@ func (p *OpenAIProvider) Interpret(divinationType string, result string, questio
 			}
 		}
 		if err := scanner.Err(); err != nil {
+			ch <- incompleteConnectionNotice
 			log.Warn().
 				Str("component", "ai").
 				Str("divination_type", divinationType).
 				Err(err).
 				Msg("AI stream scanner stopped with error")
+		} else if !finished {
+			ch <- incompleteConnectionNotice
+			log.Warn().
+				Str("component", "ai").
+				Str("divination_type", divinationType).
+				Msg("AI stream ended without completion marker")
 		}
 	}()
 
@@ -371,7 +387,7 @@ func NewAIService(provider AIProvider, reader AIResultReader) *AIService {
 }
 
 // Interpret starts streaming AI interpretation for a divination record.
-func (s *AIService) Interpret(userID uint, recordID uint, divinationType string, question string) (<-chan string, error) {
+func (s *AIService) Interpret(userID uint, recordID uint, divinationType string, question string, force bool) (<-chan string, error) {
 	if s.provider == nil {
 		return nil, apperrors.New(apperrors.ErrAIServiceUnavailable,
 			"AI service is not configured. Set ZHANBU_AI_API_KEY to enable AI readings.")
@@ -394,7 +410,7 @@ func (s *AIService) Interpret(userID uint, recordID uint, divinationType string,
 	}
 
 	// Check if AI reading already exists
-	if record.AIReading != "" {
+	if record.AIReading != "" && !force {
 		// Return existing reading as a single chunk
 		ch := make(chan string, 1)
 		ch <- record.AIReading
@@ -411,16 +427,18 @@ func (s *AIService) Interpret(userID uint, recordID uint, divinationType string,
 	// Collect the full reading in background for saving
 	fullReadingCh := make(chan string, 100)
 	go func() {
+		defer close(fullReadingCh)
+
 		var fullReading strings.Builder
 		for chunk := range ch {
 			fullReading.WriteString(chunk)
 			fullReadingCh <- chunk
 		}
-		close(fullReadingCh)
 
-		// Save the complete reading
-		if fullReading.Len() > 0 {
-			_ = s.reader.UpdateAIReading(recordID, fullReading.String())
+		// Save only complete readings, so history does not cache truncated output.
+		reading := fullReading.String()
+		if reading != "" && !isIncompleteAIReading(reading) {
+			_ = s.reader.UpdateAIReading(recordID, reading)
 		}
 	}()
 
@@ -435,6 +453,12 @@ func (s *AIService) InterpretDirect(divinationType string, result string, questi
 	}
 
 	return s.provider.Interpret(divinationType, result, question)
+}
+
+func isIncompleteAIReading(reading string) bool {
+	return strings.Contains(reading, "AI 输出达到长度上限") ||
+		strings.Contains(reading, "AI 解读连接中断") ||
+		strings.Contains(reading, "内容可能未完整生成")
 }
 
 // MockAIProvider is a mock AI provider for testing.

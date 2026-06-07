@@ -5,6 +5,7 @@ export interface InterpretRequest {
   result_id?: number
   result?: string   // Direct result JSON (alternative to result_id)
   question?: string
+  force?: boolean
 }
 
 export interface InterpretChunk {

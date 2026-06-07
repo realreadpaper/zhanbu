@@ -19,7 +19,7 @@ export interface UseAIReturn {
   /** Any error that occurred */
   error: string | null
   /** Start the streaming interpretation */
-  start: () => void
+  start: (force?: boolean) => void
   /** Reset the state */
   reset: () => void
 }
@@ -34,7 +34,7 @@ export function useAI({ type, resultId, result, question, autoStart = false }: U
   const [error, setError] = useState<string | null>(null)
   const cleanupRef = useRef<(() => void) | null>(null)
 
-  const start = useCallback(() => {
+  const start = useCallback((force = false) => {
     // Reset state
     setText('')
     setIsStreaming(true)
@@ -43,7 +43,7 @@ export function useAI({ type, resultId, result, question, autoStart = false }: U
 
     // Start streaming
     cleanupRef.current = interpretStream(
-      { type, result_id: resultId, result, question },
+      { type, result_id: resultId, result, question, force },
       // onChunk
       (chunk: string) => {
         setText((prev) => prev + chunk)

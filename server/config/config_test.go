@@ -24,6 +24,14 @@ func TestLoadFromEnv_ReadsAIConfig(t *testing.T) {
 	}
 }
 
+func TestLoadFromEnv_DefaultAIMaxTokensSupportsLongReadings(t *testing.T) {
+	cfg := LoadFromEnv()
+
+	if cfg.AI.MaxTokens != 5000 {
+		t.Fatalf("expected default AI max tokens to be 5000, got %d", cfg.AI.MaxTokens)
+	}
+}
+
 func TestLoadFromEnv_ReadsRenderPortAndCORSOrigins(t *testing.T) {
 	t.Setenv("PORT", "10000")
 	t.Setenv("ZHANBU_CORS_ALLOWED_ORIGINS", "https://zhanbu.vercel.app, https://example.fun")

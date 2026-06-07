@@ -88,6 +88,7 @@ type InterpretRequest struct {
 	ResultID uint   `json:"result_id"`
 	Result   string `json:"result"` // Direct result JSON (alternative to result_id)
 	Question string `json:"question"`
+	Force    bool   `json:"force"`
 }
 
 // Interpret handles POST /api/ai/interpret with SSE streaming.
@@ -125,7 +126,7 @@ func (h *AIHandler) Interpret(c *gin.Context) {
 	var ch <-chan string
 	var err error
 	if req.ResultID > 0 {
-		ch, err = h.service.Interpret(userID, req.ResultID, req.Type, req.Question)
+		ch, err = h.service.Interpret(userID, req.ResultID, req.Type, req.Question, req.Force)
 	} else if req.Result != "" {
 		ch, err = h.service.InterpretDirect(req.Type, req.Result, req.Question)
 	} else {
