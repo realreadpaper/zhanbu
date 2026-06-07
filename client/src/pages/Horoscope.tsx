@@ -385,7 +385,7 @@ function PeriodTabs({
 // ─── Result Card ─────────────────────────────────────────────────────────────
 
 function ResultCard({ result }: { result: HoroscopeResult }) {
-  const resultJson = JSON.stringify(result)
+  const resultJson = result.record_id ? undefined : JSON.stringify(result)
 
   return (
     <motion.div
@@ -442,6 +442,7 @@ function ResultCard({ result }: { result: HoroscopeResult }) {
       {/* AI Reading */}
       <AIReading
         type="horoscope"
+        resultId={result.record_id}
         result={resultJson}
       />
     </motion.div>

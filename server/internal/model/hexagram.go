@@ -48,6 +48,7 @@ type LineResult struct {
 
 // LiuYaoResult represents the full throw result.
 type LiuYaoResult struct {
+	RecordID     uint          `json:"record_id,omitempty"`
 	Question     string        `json:"question,omitempty"`
 	Lines        [6]LineResult `json:"lines"`
 	BenGua       *Hexagram     `json:"ben_gua"`
@@ -103,6 +104,7 @@ type BaZiBirthInfo struct {
 
 // BaZiResult represents the full bazi calculation result.
 type BaZiResult struct {
+	RecordID     uint                `json:"record_id,omitempty"`
 	Birth        BaZiBirthInfo       `json:"birth"`
 	Pillars      BaZiPillars         `json:"pillars"`
 	FiveElements FiveElementAnalysis `json:"five_elements"`
@@ -201,6 +203,7 @@ type TakashimaBookEvidence struct {
 
 // LiuYaoV2Result represents the full throw result for v2 (Takashima style).
 type LiuYaoV2Result struct {
+	RecordID     uint                   `json:"record_id,omitempty"`
 	Question     string                 `json:"question,omitempty"`
 	Lines        [6]LineResult          `json:"lines"`
 	BenGua       *TakashimaHexagram     `json:"ben_gua"`

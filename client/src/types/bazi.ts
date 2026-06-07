@@ -39,6 +39,7 @@ export interface BaZiBirthInfo {
 }
 
 export interface BaZiResult {
+  record_id?: number
   birth: BaZiBirthInfo
   pillars: BaZiPillars
   five_elements: FiveElementAnalysis

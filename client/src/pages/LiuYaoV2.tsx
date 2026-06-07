@@ -154,7 +154,8 @@ export default function LiuYaoV2() {
 
   const ai = useAI({
     type: 'liuyao_v2',
-    result: result ? JSON.stringify(result) : undefined,
+    resultId: result?.record_id,
+    result: result && !result.record_id ? JSON.stringify(result) : undefined,
     question: result?.question,
   })
 
@@ -350,7 +351,8 @@ export default function LiuYaoV2() {
             {result && (
               <AIReading
                 type="liuyao_v2"
-                result={JSON.stringify(result)}
+                resultId={result.record_id}
+                result={!result.record_id ? JSON.stringify(result) : undefined}
                 question={result.question}
               />
             )}

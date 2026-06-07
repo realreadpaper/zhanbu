@@ -4,13 +4,13 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
 
+	"gorm.io/gorm"
 	"zhanbu/config"
 	"zhanbu/internal/handler"
 	"zhanbu/internal/middleware"
 	"zhanbu/internal/repository"
 	"zhanbu/internal/service"
 	"zhanbu/pkg/utils"
-	"gorm.io/gorm"
 )
 
 // SetupRouter initializes all routes and returns a Gin engine.
@@ -83,8 +83,9 @@ func SetupRouter(db *gorm.DB, cfg *config.Config, logger zerolog.Logger) *gin.En
 		// Fallback: create with nil templates (will return empty strings)
 	}
 	horoscopeService := service.NewHoroscopeService(horoscopeTemplates)
-	horoscopeHandler := handler.NewHoroscopeHandler(horoscopeService)
+	horoscopeHandler := handler.NewHoroscopeHandler(horoscopeService, divinationRepo)
 	horoscopeGroup := r.Group("/api/horoscope")
+	horoscopeGroup.Use(middleware.OptionalAuthMiddleware(jwtManager))
 	{
 		horoscopeGroup.GET("/:zodiac", horoscopeHandler.GetHoroscope)
 	}

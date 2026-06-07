@@ -3,15 +3,85 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { DayPicker, type DateRange } from 'react-day-picker'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale/zh-CN'
-import { fetchHistory, deleteHistory, type HistoryListResponse } from '../services/history'
+import {
+  fetchHistory,
+  fetchHistoryDetail,
+  deleteHistory,
+  type DivinationRecord,
+  type HistoryListResponse,
+} from '../services/history'
 import 'react-day-picker/style.css'
 
 const typeFilters = [
   { value: '', label: '全部' },
   { value: 'liuyao', label: '六爻' },
+  { value: 'liuyao_v2', label: '高岛易断' },
   { value: 'bazi', label: '八字' },
   { value: 'tarot', label: '塔罗牌' },
+  { value: 'horoscope', label: '星座' },
 ]
+
+function parseResult(result: string): unknown {
+  try {
+    return JSON.parse(result)
+  } catch {
+    return result
+  }
+}
+
+function valueAsRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null
+}
+
+function getNestedString(value: unknown, path: string[]): string {
+  let current: unknown = value
+  for (const key of path) {
+    const record = valueAsRecord(current)
+    if (!record) return ''
+    current = record[key]
+  }
+  return typeof current === 'string' ? current : ''
+}
+
+function getResultTitle(record: DivinationRecord): string {
+  const result = parseResult(record.result)
+  const benGua = getNestedString(result, ['ben_gua', 'name']) || getNestedString(result, ['ben_gua', 'name_short'])
+  const bianGua = getNestedString(result, ['bian_gua', 'name']) || getNestedString(result, ['bian_gua', 'name_short'])
+  if (benGua && bianGua) return `${benGua} → ${bianGua}`
+  if (benGua) return benGua
+
+  const zodiac = getNestedString(result, ['zodiac_cn'])
+  const period = getNestedString(result, ['period'])
+  if (zodiac) return period ? `${zodiac} · ${period}` : zodiac
+
+  const birth = getNestedString(result, ['birth', 'solar'])
+  if (birth) return birth
+
+  const cards = valueAsRecord(result)?.cards
+  if (Array.isArray(cards)) {
+    const names = cards
+      .map((item) => getNestedString(item, ['card', 'name']))
+      .filter(Boolean)
+      .slice(0, 4)
+    if (names.length > 0) return names.join(' · ')
+  }
+
+  return record.type
+}
+
+function getResultSummary(record: DivinationRecord): string {
+  const result = parseResult(record.result)
+  const summary = getNestedString(result, ['summary'])
+  if (summary) return summary
+
+  const judgment = getNestedString(result, ['ben_gua', 'judgment', 'text']) || getNestedString(result, ['ben_gua', 'judgment'])
+  if (judgment) return judgment
+
+  if (typeof result === 'string') return result
+  return record.result
+}
 
 export default function History() {
   const [data, setData] = useState<HistoryListResponse | null>(null)
@@ -22,6 +92,9 @@ export default function History() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
   const [showCalendar, setShowCalendar] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [activeDetailId, setActiveDetailId] = useState<number | null>(null)
+  const [detail, setDetail] = useState<DivinationRecord | null>(null)
+  const [isDetailLoading, setIsDetailLoading] = useState(false)
 
   const loadData = useCallback(async (type: string, p: number, range?: DateRange) => {
     setIsLoading(true)
@@ -32,6 +105,8 @@ export default function History() {
       const result = await fetchHistory(type || undefined, p, 10, startDate, endDate)
       setData(result)
       setSelectedIds(new Set())
+      setActiveDetailId(null)
+      setDetail(null)
     } catch (err) {
       setError('加载历史记录失败')
       console.error('History load error:', err)
@@ -86,11 +161,38 @@ export default function History() {
     })
   }
 
+  const handleOpenDetail = async (id: number) => {
+    if (activeDetailId === id && detail) {
+      setActiveDetailId(null)
+      setDetail(null)
+      return
+    }
+
+    setActiveDetailId(id)
+    setIsDetailLoading(true)
+    setError(null)
+    try {
+      const result = await fetchHistoryDetail(id)
+      setDetail(result)
+    } catch (err) {
+      setError('加载详情失败')
+      console.error('History detail error:', err)
+      setActiveDetailId(null)
+      setDetail(null)
+    } finally {
+      setIsDetailLoading(false)
+    }
+  }
+
   const handleDelete = async (id: number) => {
     if (!confirm('确定要删除这条记录吗？')) return
 
     try {
       await deleteHistory(id)
+      if (activeDetailId === id) {
+        setActiveDetailId(null)
+        setDetail(null)
+      }
       loadData(activeType, page, dateRange)
     } catch (err) {
       setError('删除失败')
@@ -101,7 +203,9 @@ export default function History() {
   const typeIcons: Record<string, string> = {
     tarot: '🔮',
     liuyao: '☯',
+    liuyao_v2: '☯',
     bazi: '📜',
+    horoscope: '✨',
   }
 
   return (
@@ -265,12 +369,28 @@ export default function History() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
-              className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-5 hover:border-slate-600/50 transition-all group"
+              role="button"
+              tabIndex={0}
+              onClick={() => handleOpenDetail(item.id)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  handleOpenDetail(item.id)
+                }
+              }}
+              className={`bg-slate-800/50 border rounded-xl p-5 transition-all group cursor-pointer ${
+                activeDetailId === item.id
+                  ? 'border-amber-500/40 bg-slate-800/70'
+                  : 'border-slate-700/50 hover:border-slate-600/50'
+              }`}
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-3 flex-1 min-w-0">
                   <button
-                    onClick={() => handleToggleSelect(item.id)}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      handleToggleSelect(item.id)
+                    }}
                     className={`w-5 h-5 rounded border flex-shrink-0 flex items-center justify-center transition-all mt-0.5 ${
                       selectedIds.has(item.id)
                         ? 'bg-amber-500/20 border-amber-500/30'
@@ -296,7 +416,10 @@ export default function History() {
                   </div>
                 </div>
                 <button
-                  onClick={() => handleDelete(item.id)}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    handleDelete(item.id)
+                  }}
                   className="text-slate-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 ml-4 flex-shrink-0"
                   title="删除"
                 >
@@ -305,6 +428,54 @@ export default function History() {
                   </svg>
                 </button>
               </div>
+
+              <AnimatePresence>
+                {activeDetailId === item.id && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <div className="mt-5 border-t border-slate-700/60 pt-5">
+                      {isDetailLoading && (
+                        <p className="text-sm text-slate-500">详情加载中...</p>
+                      )}
+
+                      {!isDetailLoading && detail && detail.id === item.id && (
+                        <div className="space-y-5">
+                          <div>
+                            <p className="text-xs font-medium text-amber-400 mb-1">记录详情</p>
+                            <h2 className="text-lg font-semibold text-white">{getResultTitle(detail)}</h2>
+                            {detail.question && (
+                              <p className="mt-2 text-sm text-slate-400">{detail.question}</p>
+                            )}
+                          </div>
+
+                          <div className="rounded-lg border border-slate-700/60 bg-slate-900/40 p-4">
+                            <p className="mb-2 text-xs font-medium text-slate-500">占卜结果</p>
+                            <p className="whitespace-pre-wrap text-sm leading-6 text-slate-300 line-clamp-6">
+                              {getResultSummary(detail)}
+                            </p>
+                          </div>
+
+                          <div className="rounded-lg border border-violet-500/20 bg-violet-500/5 p-4">
+                            <p className="mb-2 text-xs font-medium text-violet-300">AI解读</p>
+                            {detail.ai_reading ? (
+                              <p className="whitespace-pre-wrap text-sm leading-6 text-slate-300">
+                                {detail.ai_reading}
+                              </p>
+                            ) : (
+                              <p className="text-sm text-slate-500">暂无 AI 解读</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           ))}
         </div>

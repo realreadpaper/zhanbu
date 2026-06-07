@@ -39,6 +39,7 @@ export interface LineResult {
 }
 
 export interface LiuYaoResult {
+  record_id?: number
   question?: string
   lines: LineResult[]
   ben_gua: Hexagram
@@ -108,6 +109,7 @@ export interface TakashimaHexagram {
 }
 
 export interface LiuYaoV2Result {
+  record_id?: number
   question?: string
   lines: LineResult[]
   ben_gua: TakashimaHexagram

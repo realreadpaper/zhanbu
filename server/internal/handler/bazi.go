@@ -57,7 +57,9 @@ func (h *BaZiHandler) Calculate(c *gin.Context) {
 			Question: req.BirthDate + " " + req.BirthTime,
 			Result:   resultJSON,
 		}
-		_ = h.saver.Create(record)
+		if err := h.saver.Create(record); err == nil {
+			result.RecordID = record.ID
+		}
 	}
 
 	response.Success(c, result)

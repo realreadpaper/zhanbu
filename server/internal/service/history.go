@@ -56,6 +56,7 @@ var typeCNMap = map[string]string{
 	"tarot":     "塔罗牌",
 	"horoscope": "星座运势",
 	"liuyao":    "六爻",
+	"liuyao_v2": "高岛易断",
 	"bazi":      "八字",
 }
 

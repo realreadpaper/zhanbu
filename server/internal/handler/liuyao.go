@@ -53,7 +53,9 @@ func (h *LiuYaoHandler) Throw(c *gin.Context) {
 			Question: req.Question,
 			Result:   resultJSON,
 		}
-		_ = h.saver.Create(record)
+		if err := h.saver.Create(record); err == nil {
+			result.RecordID = record.ID
+		}
 	}
 
 	response.Success(c, result)

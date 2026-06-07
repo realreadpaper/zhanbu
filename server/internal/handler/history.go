@@ -32,7 +32,7 @@ func (h *HistoryHandler) List(c *gin.Context) {
 
 	divinationType := c.Query("type")
 	if divinationType != "" {
-		validTypes := map[string]bool{"tarot": true, "horoscope": true, "liuyao": true, "bazi": true}
+		validTypes := map[string]bool{"tarot": true, "horoscope": true, "liuyao": true, "liuyao_v2": true, "bazi": true}
 		if !validTypes[divinationType] {
 			response.Error(c, http.StatusBadRequest, apperrors.ErrBadRequest, "invalid type parameter")
 			return

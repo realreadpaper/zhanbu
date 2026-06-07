@@ -16,8 +16,8 @@ import (
 
 // LiuYaoV2Handler handles LiuYao v2 (Takashima) HTTP requests.
 type LiuYaoV2Handler struct {
-	service  *service.LiuYaoV2Service
-	saver    service.DivinationRecordSaver
+	service *service.LiuYaoV2Service
+	saver   service.DivinationRecordSaver
 }
 
 // NewLiuYaoV2Handler creates a new LiuYaoV2Handler.
@@ -51,7 +51,9 @@ func (h *LiuYaoV2Handler) Throw(c *gin.Context) {
 			Question: req.Question,
 			Result:   string(resultJSON),
 		}
-		_ = h.saver.Create(record)
+		if err := h.saver.Create(record); err == nil {
+			result.RecordID = record.ID
+		}
 	}
 
 	response.Success(c, result)

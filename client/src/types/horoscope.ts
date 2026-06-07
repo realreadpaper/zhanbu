@@ -6,6 +6,7 @@ export interface HoroscopeDetail {
 }
 
 export interface HoroscopeResult {
+  record_id?: number
   zodiac: string
   zodiac_cn: string
   period: 'daily' | 'weekly' | 'monthly'

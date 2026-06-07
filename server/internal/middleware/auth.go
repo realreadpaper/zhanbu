@@ -48,6 +48,32 @@ func AuthMiddleware(jwtManager *utils.JWTManager) gin.HandlerFunc {
 	}
 }
 
+// OptionalAuthMiddleware extracts user info when a valid Bearer token is present.
+// Public endpoints can use it to persist data for logged-in users without
+// rejecting anonymous requests.
+func OptionalAuthMiddleware(jwtManager *utils.JWTManager) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.Next()
+			return
+		}
+
+		parts := strings.Split(authHeader, " ")
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			c.Next()
+			return
+		}
+
+		claims, err := jwtManager.ValidateToken(parts[1])
+		if err == nil {
+			c.Set("user_id", claims.UserID)
+			c.Set("username", claims.Username)
+		}
+		c.Next()
+	}
+}
+
 // GetUserID extracts the user ID from the Gin context.
 // Returns 0 if not found.
 func GetUserID(c *gin.Context) uint {

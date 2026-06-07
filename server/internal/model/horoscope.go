@@ -2,10 +2,10 @@ package model
 
 // ZodiacInfo holds static zodiac data.
 type ZodiacInfo struct {
-	Name    string `json:"name"`     // e.g. "aries"
-	NameCN  string `json:"name_cn"`  // e.g. "白羊座"
-	Element string `json:"element"`  // fire/earth/air/water
-	Planet  string `json:"planet"`   // ruling planet
+	Name    string `json:"name"`    // e.g. "aries"
+	NameCN  string `json:"name_cn"` // e.g. "白羊座"
+	Element string `json:"element"` // fire/earth/air/water
+	Planet  string `json:"planet"`  // ruling planet
 }
 
 // Zodiacs is the ordered list of all 12 zodiac signs.
@@ -26,19 +26,20 @@ var Zodiacs = []ZodiacInfo{
 
 // HoroscopeResult is the complete horoscope response.
 type HoroscopeResult struct {
-	Zodiac     string            `json:"zodiac"`
-	ZodiacCN   string            `json:"zodiac_cn"`
-	Period     string            `json:"period"`
-	Date       string            `json:"date"`
-	Overall    int               `json:"overall"`
-	Love       int               `json:"love"`
-	Career     int               `json:"career"`
-	Wealth     int               `json:"wealth"`
-	Health     int               `json:"health"`
-	LuckyNumber int              `json:"lucky_number"`
-	LuckyColor  string           `json:"lucky_color"`
-	Summary     string           `json:"summary"`
-	Detail      HoroscopeDetail  `json:"detail"`
+	RecordID    uint            `json:"record_id,omitempty"`
+	Zodiac      string          `json:"zodiac"`
+	ZodiacCN    string          `json:"zodiac_cn"`
+	Period      string          `json:"period"`
+	Date        string          `json:"date"`
+	Overall     int             `json:"overall"`
+	Love        int             `json:"love"`
+	Career      int             `json:"career"`
+	Wealth      int             `json:"wealth"`
+	Health      int             `json:"health"`
+	LuckyNumber int             `json:"lucky_number"`
+	LuckyColor  string          `json:"lucky_color"`
+	Summary     string          `json:"summary"`
+	Detail      HoroscopeDetail `json:"detail"`
 }
 
 // HoroscopeDetail holds dimension-specific text.

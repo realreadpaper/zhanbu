@@ -107,7 +107,8 @@ export default function BaZi() {
 
   const ai = useAI({
     type: 'bazi',
-    result: result ? JSON.stringify(result) : undefined,
+    resultId: result?.record_id,
+    result: result && !result.record_id ? JSON.stringify(result) : undefined,
     question: result ? `八字排盘 ${result.birth.solar}` : undefined,
   })
 
@@ -402,7 +403,8 @@ export default function BaZi() {
             {result && (
               <AIReading
                 type="bazi"
-                result={JSON.stringify(result)}
+                resultId={result.record_id}
+                result={!result.record_id ? JSON.stringify(result) : undefined}
                 question={`八字排盘 ${result.birth.solar}`}
               />
             )}
