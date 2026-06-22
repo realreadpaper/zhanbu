@@ -120,7 +120,8 @@ func SetupRouter(db *gorm.DB, cfg *config.Config, logger zerolog.Logger) *gin.En
 	}
 
 	// LiuYao v2 (高岛易断) routes
-	liuyaoV2Service, err := service.NewLiuYaoV2Service(cfg.LiuYao.Method)
+	var liuyaoV2Service *service.LiuYaoV2Service
+	liuyaoV2Service, err = service.NewLiuYaoV2Service(cfg.LiuYao.Method)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to initialize LiuYao v2 service")
 	} else {
@@ -151,6 +152,27 @@ func SetupRouter(db *gorm.DB, cfg *config.Config, logger zerolog.Logger) *gin.En
 		historyGroup.GET("", historyHandler.List)
 		historyGroup.GET(":id", historyHandler.GetDetail)
 		historyGroup.DELETE(":id", historyHandler.Delete)
+	}
+
+	// Chat routes (authenticated)
+	chatRepo := repository.NewChatRepository(db)
+	chatService := service.NewChatService(chatRepo, divinationRepo, aiProvider)
+	chatService.SetDivinationStarter(service.NewChatModeStarter(
+		divinationRepo,
+		tarotService,
+		liuyaoV2Service,
+		baziService,
+		horoscopeService,
+	))
+	chatHandler := handler.NewChatHandler(chatService)
+	chatGroup := r.Group("/api/chat")
+	chatGroup.Use(authMiddleware)
+	{
+		chatGroup.POST("/sessions", chatHandler.CreateSession)
+		chatGroup.GET("/sessions", chatHandler.ListSessions)
+		chatGroup.GET("/sessions/:id", chatHandler.GetSession)
+		chatGroup.DELETE("/sessions/:id", chatHandler.DeleteSession)
+		chatGroup.POST("/sessions/:id/messages", chatHandler.SendMessage)
 	}
 
 	// Email verification routes (if SMTP enabled)

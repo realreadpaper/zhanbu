@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, expect, test, vi } from 'vitest'
 import AIReading from './AIReading'
 import { useAI } from '../../hooks/useAI'
@@ -24,7 +25,11 @@ test('shows incomplete status instead of completed status for truncated readings
     reset: vi.fn(),
   })
 
-  render(<AIReading type="liuyao_v2" resultId={1} question="关系能长久吗" />)
+  render(
+    <MemoryRouter>
+      <AIReading type="liuyao_v2" resultId={1} question="关系能长久吗" />
+    </MemoryRouter>
+  )
 
   expect(screen.getByText('解读未完整')).toBeTruthy()
   expect(screen.queryByText('解读完成')).toBeNull()
@@ -41,7 +46,11 @@ test('regenerates with force when clicking reread on existing text', () => {
     reset: vi.fn(),
   })
 
-  render(<AIReading type="liuyao_v2" resultId={1} question="关系能长久吗" />)
+  render(
+    <MemoryRouter>
+      <AIReading type="liuyao_v2" resultId={1} question="关系能长久吗" />
+    </MemoryRouter>
+  )
   fireEvent.click(screen.getByText('重新解读'))
 
   expect(start).toHaveBeenCalledWith(true)

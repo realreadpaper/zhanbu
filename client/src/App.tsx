@@ -1,27 +1,22 @@
-import { Routes, Route, useNavigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { Routes, Route, useNavigate, Navigate, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
 import Header from './components/Header'
 import Footer from './components/Footer'
 import ErrorBoundary from './components/ErrorBoundary'
 import ProtectedRoute from './components/ProtectedRoute'
-import Home from './pages/Home'
-import Tarot from './pages/Tarot'
-import LiuYao from './pages/LiuYao'
-import LiuYaoV2 from './pages/LiuYaoV2'
-import BaZi from './pages/BaZi'
 import History from './pages/History'
 import Profile from './pages/Profile'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import VerifyEmail from './pages/VerifyEmail'
+import ChatPage from './pages/ChatPage'
 import { useAuthStore } from './stores/authStore'
 import { setNavigate } from './services/api'
-import { fetchLiuYaoConfig } from './services/liuyao'
 
 export default function App() {
   const initAuth = useAuthStore((s) => s.initAuth)
   const navigate = useNavigate()
-  const [liuyaoVersion, setLiuYaoVersion] = useState<string>('v1')
+  const location = useLocation()
 
   useEffect(() => {
     setNavigate(navigate)
@@ -31,29 +26,15 @@ export default function App() {
     initAuth()
   }, [initAuth])
 
-  useEffect(() => {
-    fetchLiuYaoConfig()
-      .then((config) => {
-        setLiuYaoVersion(config.version)
-      })
-      .catch(() => {
-        // 默认使用v1
-        setLiuYaoVersion('v1')
-      })
-  }, [])
-
-  // 根据配置渲染对应的六爻组件
-  const LiuYaoPage = liuyaoVersion === 'v2' ? LiuYaoV2 : LiuYao
-
   return (
     <ErrorBoundary>
       <Header />
       <main className="flex-1 flex flex-col">
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/tarot" element={<Tarot />} />
-          <Route path="/liuyao" element={<LiuYaoPage />} />
-          <Route path="/bazi" element={<BaZi />} />
+          <Route path="/" element={<Navigate to="/chat" replace />} />
+          <Route path="/tarot" element={<Navigate to="/chat?type=tarot" replace />} />
+          <Route path="/liuyao" element={<Navigate to="/chat?type=liuyao" replace />} />
+          <Route path="/bazi" element={<Navigate to="/chat?type=bazi" replace />} />
           <Route
             path="/history"
             element={
@@ -73,6 +54,22 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route
+            path="/chat"
+            element={
+              <ProtectedRoute>
+                <ChatPage key={location.search} />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/chat/:id"
+            element={
+              <ProtectedRoute>
+                <ChatPage />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </main>
       <Footer />

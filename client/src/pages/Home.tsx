@@ -4,21 +4,21 @@ import { useAuthStore } from '../stores/authStore'
 
 const divinationTypes = [
   {
-    path: '/liuyao',
+    path: '/chat?type=liuyao',
     icon: '☰',
     title: '周易六爻',
     description: '传承千年的易经智慧，通过六爻卦象预测事物的发展趋势。',
     gradient: 'from-emerald-500 to-teal-500',
   },
   {
-    path: '/bazi',
+    path: '/chat?type=bazi',
     icon: '📅',
     title: '八字排盘',
     description: '根据出生时辰推算八字，解读命运密码，规划人生蓝图。',
     gradient: 'from-blue-500 to-cyan-500',
   },
   {
-    path: '/tarot',
+    path: '/chat?type=tarot',
     icon: '🔮',
     title: '塔罗牌占卜',
     description: '通过塔罗牌的神秘图案，探索内心深处的答案，指引人生方向。',

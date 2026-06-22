@@ -13,9 +13,11 @@ import (
 
 // DivinationRecordReader defines the read operations for divination records (for testing).
 type DivinationRecordReader interface {
+	Create(record *model.DivinationRecord) error
 	FindByUserIDAndID(userID uint, id uint) (*model.DivinationRecord, error)
 	ListByUserID(userID uint, divinationType string, page, pageSize int) ([]model.DivinationRecord, int64, error)
 	DeleteByUserIDAndID(userID uint, id uint) error
+	UpdateAIReading(id uint, reading string) error
 }
 
 // HistoryService handles history business logic.

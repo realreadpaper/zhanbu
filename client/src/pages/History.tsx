@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useNavigate } from 'react-router-dom'
 import { DayPicker, type DateRange } from 'react-day-picker'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale/zh-CN'
@@ -10,6 +11,7 @@ import {
   type DivinationRecord,
   type HistoryListResponse,
 } from '../services/history'
+import { listSessions, type ChatSession } from '../services/chat'
 import 'react-day-picker/style.css'
 
 const typeFilters = [
@@ -84,6 +86,7 @@ function getResultSummary(record: DivinationRecord): string {
 }
 
 export default function History() {
+  const navigate = useNavigate()
   const [data, setData] = useState<HistoryListResponse | null>(null)
   const [activeType, setActiveType] = useState('')
   const [page, setPage] = useState(1)
@@ -95,6 +98,7 @@ export default function History() {
   const [activeDetailId, setActiveDetailId] = useState<number | null>(null)
   const [detail, setDetail] = useState<DivinationRecord | null>(null)
   const [isDetailLoading, setIsDetailLoading] = useState(false)
+  const [chatSessions, setChatSessions] = useState<Map<number, ChatSession>>(new Map())
 
   const loadData = useCallback(async (type: string, p: number, range?: DateRange) => {
     setIsLoading(true)
@@ -107,6 +111,16 @@ export default function History() {
       setSelectedIds(new Set())
       setActiveDetailId(null)
       setDetail(null)
+
+      // Load chat sessions to check which records have sessions
+      try {
+        const sessionsResult = await listSessions(1, 100)
+        const sessionMap = new Map<number, ChatSession>()
+        sessionsResult.sessions.forEach(s => sessionMap.set(s.record_id, s))
+        setChatSessions(sessionMap)
+      } catch {
+        // Ignore chat session load errors
+      }
     } catch (err) {
       setError('加载历史记录失败')
       console.error('History load error:', err)
@@ -469,6 +483,19 @@ export default function History() {
                             ) : (
                               <p className="text-sm text-slate-500">暂无 AI 解读</p>
                             )}
+                          </div>
+
+                          {/* Chat button */}
+                          <div className="flex gap-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                navigate(`/chat/${item.id}`)
+                              }}
+                              className="flex-1 px-4 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 rounded-lg text-white text-sm font-medium hover:from-violet-700 hover:to-indigo-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-violet-500/20"
+                            >
+                              💬 {chatSessions.has(item.id) ? '继续对话' : '进入对话'}
+                            </button>
                           </div>
                         </div>
                       )}

@@ -1,12 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
 
-const navItems = [
-  { path: '/liuyao', label: '六爻占卜' },
-  { path: '/bazi', label: '八字命理' },
-  { path: '/tarot', label: '塔罗占卜' },
-]
-
 export default function Header() {
   const { isAuthenticated, user, logout } = useAuthStore()
   const navigate = useNavigate()
@@ -27,19 +21,6 @@ export default function Header() {
               玄机占卜
             </span>
           </Link>
-
-          {/* Navigation */}
-          <nav className="hidden md:flex items-center gap-1">
-            {navItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className="px-4 py-2 text-sm text-slate-300 hover:text-white rounded-lg hover:bg-white/5 transition-colors"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
 
           {/* Right side */}
           <div className="flex items-center gap-3">

@@ -14,5 +14,7 @@ func Migrate(db *gorm.DB) error {
 		&model.TarotCard{},
 		&model.EmailVerification{},
 		&model.SendLog{},
+		&model.ChatSession{},
+		&model.ChatMessage{},
 	)
 }

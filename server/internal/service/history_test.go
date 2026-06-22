@@ -11,9 +11,9 @@ import (
 
 // mockDivinationRepo is a simple in-memory mock for testing.
 type mockDivinationRepo struct {
-	records  []model.DivinationRecord
-	nextID   uint
-	findErr  error
+	records   []model.DivinationRecord
+	nextID    uint
+	findErr   error
 	createErr error
 	deleteErr error
 }
@@ -83,6 +83,16 @@ func (m *mockDivinationRepo) DeleteByUserIDAndID(userID uint, id uint) error {
 		}
 	}
 	return m.findErr // record not found
+}
+
+func (m *mockDivinationRepo) UpdateAIReading(id uint, reading string) error {
+	for i := range m.records {
+		if m.records[i].ID == id {
+			m.records[i].AIReading = reading
+			return nil
+		}
+	}
+	return m.findErr
 }
 
 // seedRecords creates test data in the mock repo.

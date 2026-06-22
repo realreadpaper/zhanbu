@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, expect, test, vi } from 'vitest'
 import History from './History'
 import { fetchHistory, fetchHistoryDetail, deleteHistory } from '../services/history'
@@ -49,7 +50,11 @@ test('loads and displays full history detail when a record is clicked', async ()
     created_at: '2026-06-07T10:44:20Z',
   })
 
-  render(<History />)
+  render(
+    <MemoryRouter>
+      <History />
+    </MemoryRouter>
+  )
 
   const item = await screen.findByText('昨天认识一个女生，关系能长久吗')
   fireEvent.click(item)

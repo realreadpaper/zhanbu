@@ -1,0 +1,1324 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>占卜聊天模式 - 网页端 UI 设计方案 v3</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #0a0a1a;
+            color: #e0e0e0;
+            line-height: 1.6;
+        }
+        .container { max-width: 1600px; margin: 0 auto; padding: 40px 24px; }
+
+        h1 {
+            text-align: center;
+            font-size: 2.5em;
+            background: linear-gradient(135deg, #c084fc, #818cf8, #60a5fa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        .subtitle { text-align: center; color: #64748b; font-size: 1.1em; margin-bottom: 50px; }
+
+        .section {
+            background: rgba(15, 15, 35, 0.8);
+            border: 1px solid rgba(100, 100, 200, 0.15);
+            border-radius: 20px;
+            padding: 36px;
+            margin-bottom: 32px;
+        }
+        .section h2 {
+            font-size: 1.5em;
+            color: #a78bfa;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .section h3 { font-size: 1.15em; color: #818cf8; margin: 24px 0 14px; }
+        .section p { color: #94a3b8; margin-bottom: 12px; }
+
+        /* 浏览器窗口模拟 */
+        .browser-frame {
+            background: #1a1a2e;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+            border: 1px solid rgba(100, 100, 200, 0.2);
+        }
+        .browser-toolbar {
+            background: rgba(15, 15, 35, 0.95);
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid rgba(100, 100, 200, 0.1);
+        }
+        .browser-dots { display: flex; gap: 6px; }
+        .browser-dots span {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        .browser-dots .red { background: #ff5f57; }
+        .browser-dots .yellow { background: #ffbd2e; }
+        .browser-dots .green { background: #28c840; }
+        .browser-url {
+            flex: 1;
+            background: rgba(30, 30, 60, 0.8);
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 12px;
+            color: #64748b;
+            font-family: monospace;
+        }
+        .browser-content {
+            min-height: 600px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 页面布局 */
+        .page-header {
+            background: rgba(15, 15, 35, 0.95);
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(100, 100, 200, 0.1);
+        }
+        .page-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 16px;
+            font-weight: 700;
+            color: #e2e8f0;
+        }
+        .page-logo span { font-size: 20px; }
+        .page-nav { display: flex; gap: 20px; }
+        .page-nav a {
+            color: #64748b;
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.2s;
+        }
+        .page-nav a:hover, .page-nav a.active { color: #a78bfa; }
+        .page-user {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #94a3b8;
+            font-size: 13px;
+        }
+        .page-user .avatar {
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, #a78bfa, #818cf8);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+
+        /* 桌面端聊天布局 */
+        .desktop-layout {
+            display: flex;
+            flex: 1;
+            min-height: 560px;
+        }
+
+        /* 左侧面板 */
+        .left-panel {
+            width: 340px;
+            background: rgba(15, 15, 35, 0.6);
+            border-right: 1px solid rgba(100, 100, 200, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        .panel-section {
+            padding: 16px;
+            border-bottom: 1px solid rgba(100, 100, 200, 0.08);
+        }
+        .panel-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        /* 占卜信息卡片 */
+        .divination-info {
+            background: linear-gradient(135deg, rgba(167, 139, 250, 0.1), rgba(96, 165, 250, 0.06));
+            border: 1px solid rgba(167, 139, 250, 0.2);
+            border-radius: 12px;
+            padding: 16px;
+        }
+        .divination-info .type {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .divination-info .type-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #a78bfa, #818cf8);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        .divination-info .type-name { font-size: 14px; font-weight: 600; color: #e2e8f0; }
+        .divination-info .type-meta { font-size: 11px; color: #64748b; }
+        .divination-info .question {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+        .divination-info .question strong { color: #c4b5fd; }
+        .divination-info .tags {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .divination-info .tag {
+            background: rgba(167, 139, 250, 0.12);
+            border: 1px solid rgba(167, 139, 250, 0.2);
+            border-radius: 6px;
+            padding: 2px 8px;
+            font-size: 11px;
+            color: #a78bfa;
+        }
+
+        /* 牌面展示 */
+        .cards-display {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+        .card-mini {
+            width: 60px;
+            height: 90px;
+            background: linear-gradient(135deg, rgba(167, 139, 250, 0.2), rgba(96, 165, 250, 0.15));
+            border: 1px solid rgba(167, 139, 250, 0.3);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: #c4b5fd;
+            text-align: center;
+            padding: 4px;
+        }
+        .card-mini .card-emoji { font-size: 24px; margin-bottom: 4px; }
+        .card-mini .card-name { font-size: 9px; line-height: 1.2; }
+
+        /* 模式切换 */
+        .mode-switch {
+            display: flex;
+            background: rgba(30, 30, 60, 0.6);
+            border-radius: 10px;
+            padding: 3px;
+            gap: 3px;
+        }
+        .mode-btn {
+            flex: 1;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: none;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            background: transparent;
+            color: #64748b;
+        }
+        .mode-btn.active {
+            background: linear-gradient(135deg, rgba(167, 139, 250, 0.3), rgba(129, 140, 248, 0.2));
+            color: #a78bfa;
+            box-shadow: 0 2px 8px rgba(167, 139, 250, 0.2);
+        }
+
+        /* 快捷提问 */
+        .quick-questions {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .quick-btn {
+            background: rgba(167, 139, 250, 0.08);
+            border: 1px solid rgba(167, 139, 250, 0.15);
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 12px;
+            color: #94a3b8;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .quick-btn:hover {
+            background: rgba(167, 139, 250, 0.15);
+            border-color: rgba(167, 139, 250, 0.3);
+            color: #a78bfa;
+        }
+        .quick-btn .icon { font-size: 14px; }
+
+        /* 右侧聊天区 */
+        .right-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: rgba(10, 10, 26, 0.5);
+        }
+
+        /* 聊天头部 */
+        .chat-header {
+            padding: 14px 24px;
+            border-bottom: 1px solid rgba(100, 100, 200, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .chat-header .title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #e2e8f0;
+        }
+        .chat-header .subtitle { font-size: 12px; color: #64748b; }
+        .chat-header .actions { display: flex; gap: 12px; }
+        .chat-header .action-btn {
+            background: rgba(100, 100, 200, 0.1);
+            border: 1px solid rgba(100, 100, 200, 0.15);
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 12px;
+            color: #94a3b8;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .chat-header .action-btn:hover {
+            background: rgba(100, 100, 200, 0.2);
+            color: #e2e8f0;
+        }
+
+        /* 聊天消息区 */
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .chat-messages::-webkit-scrollbar { width: 4px; }
+        .chat-messages::-webkit-scrollbar-thumb { background: rgba(100,100,200,0.2); border-radius: 4px; }
+
+        /* 消息 */
+        .msg { display: flex; gap: 12px; max-width: 85%; }
+        .msg.ai { align-self: flex-start; }
+        .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+
+        .msg-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+        .msg.ai .msg-avatar {
+            background: linear-gradient(135deg, rgba(167, 139, 250, 0.3), rgba(129, 140, 248, 0.3));
+        }
+        .msg.user .msg-avatar {
+            background: linear-gradient(135deg, rgba(52, 211, 153, 0.3), rgba(16, 185, 129, 0.3));
+        }
+
+        .msg-body { flex: 1; min-width: 0; }
+        .msg-name { font-size: 12px; color: #64748b; margin-bottom: 6px; padding: 0 4px; }
+        .msg.user .msg-name { text-align: right; }
+
+        .msg-bubble {
+            padding: 14px 18px;
+            border-radius: 14px;
+            font-size: 14px;
+            line-height: 1.7;
+            color: #e2e8f0;
+        }
+        .msg.ai .msg-bubble {
+            background: rgba(30, 30, 60, 0.9);
+            border: 1px solid rgba(100, 100, 200, 0.12);
+            border-top-left-radius: 4px;
+        }
+        .msg.user .msg-bubble {
+            background: linear-gradient(135deg, rgba(167, 139, 250, 0.2), rgba(129, 140, 248, 0.15));
+            border: 1px solid rgba(167, 139, 250, 0.25);
+            border-top-right-radius: 4px;
+        }
+        .msg-bubble strong { color: #c4b5fd; }
+        .msg-bubble p { margin-bottom: 10px; }
+        .msg-bubble p:last-child { margin-bottom: 0; }
+        .msg-time { font-size: 11px; color: #475569; margin-top: 6px; padding: 0 4px; }
+        .msg.user .msg-time { text-align: right; }
+
+        /* 打字动画 */
+        .typing { display: flex; gap: 5px; padding: 10px 0; }
+        .typing-dot {
+            width: 7px;
+            height: 7px;
+            background: #818cf8;
+            border-radius: 50%;
+            animation: typingBounce 1.4s infinite;
+        }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typingBounce {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+            30% { transform: translateY(-8px); opacity: 1; }
+        }
+
+        /* 输入区 */
+        .chat-input {
+            padding: 16px 24px 20px;
+            border-top: 1px solid rgba(100, 100, 200, 0.1);
+            background: rgba(15, 15, 35, 0.5);
+        }
+        .input-row { display: flex; gap: 12px; align-items: flex-end; }
+        .input-field {
+            flex: 1;
+            background: rgba(30, 30, 60, 0.8);
+            border: 1px solid rgba(100, 100, 200, 0.2);
+            border-radius: 12px;
+            padding: 12px 16px;
+            color: #e2e8f0;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+            resize: none;
+            min-height: 44px;
+            max-height: 120px;
+        }
+        .input-field:focus { border-color: rgba(167, 139, 250, 0.5); }
+        .input-field::placeholder { color: #475569; }
+        .send-btn {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #a78bfa, #818cf8);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(167, 139, 250, 0.3);
+        }
+        .send-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(167, 139, 250, 0.4); }
+        .input-hint {
+            font-size: 11px;
+            color: #475569;
+            margin-top: 8px;
+            text-align: center;
+        }
+
+        /* 原始模式 */
+        .classic-mode { padding: 24px; flex: 1; overflow-y: auto; }
+        .classic-reading {
+            background: linear-gradient(135deg, rgba(167, 139, 250, 0.06), rgba(96, 165, 250, 0.04));
+            border: 1px solid rgba(167, 139, 250, 0.12);
+            border-radius: 14px;
+            padding: 24px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .classic-reading h4 {
+            color: #a78bfa;
+            font-size: 16px;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .classic-reading .content { font-size: 14px; line-height: 1.8; color: #cbd5e1; }
+        .classic-reading .content p { margin-bottom: 14px; }
+        .classic-reading .content strong { color: #c4b5fd; }
+
+        /* 设计说明区 */
+        .design-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-top: 24px;
+        }
+        @media (max-width: 900px) { .design-grid { grid-template-columns: 1fr; } }
+
+        .design-card {
+            background: rgba(15, 15, 35, 0.6);
+            border: 1px solid rgba(100, 100, 200, 0.1);
+            border-radius: 14px;
+            padding: 20px;
+        }
+        .design-card h4 { color: #818cf8; font-size: 14px; margin-bottom: 16px; }
+        .design-item {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(100, 100, 200, 0.06);
+        }
+        .design-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        .design-icon {
+            width: 32px;
+            height: 32px;
+            background: rgba(167, 139, 250, 0.12);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+        .design-text .label { font-size: 13px; font-weight: 600; color: #e2e8f0; }
+        .design-text .desc { font-size: 12px; color: #64748b; margin-top: 2px; }
+
+        /* 配色 */
+        .colors { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+        .color-chip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(15, 15, 35, 0.6);
+            border: 1px solid rgba(100, 100, 200, 0.1);
+            border-radius: 8px;
+            padding: 6px 10px;
+        }
+        .color-dot {
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+        }
+        .color-chip .name { font-size: 11px; color: #e2e8f0; }
+        .color-chip .hex { font-size: 10px; color: #64748b; font-family: monospace; }
+
+        /* 响应式展示 */
+        .responsive-demo {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin: 16px 0;
+        }
+        .responsive-item {
+            background: rgba(15, 15, 35, 0.6);
+            border: 1px solid rgba(100, 100, 200, 0.1);
+            border-radius: 10px;
+            padding: 16px;
+            text-align: center;
+        }
+        .responsive-item .icon { font-size: 28px; margin-bottom: 8px; }
+        .responsive-item .name { font-size: 13px; font-weight: 600; color: #e2e8f0; }
+        .responsive-item .size { font-size: 12px; color: #64748b; }
+        .responsive-item .layout { font-size: 11px; color: #475569; margin-top: 4px; }
+
+        /* 布局图 */
+        .layout-diagram {
+            background: rgba(15, 15, 35, 0.6);
+            border: 1px solid rgba(100, 100, 200, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 16px 0;
+            font-family: monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            color: #94a3b8;
+            overflow-x: auto;
+        }
+
+        /* 审核区 */
+        .approval-section {
+            text-align: center;
+            padding: 48px 36px;
+        }
+        .approval-options {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            flex-wrap: wrap;
+            margin-top: 30px;
+        }
+        .approval-card {
+            background: rgba(15, 15, 35, 0.6);
+            border-radius: 16px;
+            padding: 24px 48px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .approval-card:hover { transform: translateY(-2px); }
+        .approval-card.green { border: 2px solid rgba(52, 211, 153, 0.4); }
+        .approval-card.yellow { border: 2px solid rgba(251, 191, 36, 0.4); }
+        .approval-card.red { border: 2px solid rgba(248, 113, 113, 0.4); }
+        .approval-card .icon { font-size: 2.5em; }
+        .approval-card .title { font-weight: 700; font-size: 1.1em; margin-top: 8px; }
+        .approval-card.green .title { color: #34d399; }
+        .approval-card.yellow .title { color: #fbbf24; }
+        .approval-card.red .title { color: #f87171; }
+        .approval-card .desc { font-size: 0.9em; color: #64748b; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔮 占卜聊天模式 - 网页端 UI 设计</h1>
+        <p class="subtitle">v3.0 · 桌面端优先 · 响应式适配 · 纯网页应用</p>
+
+        <!-- ========== 1. 设计概述 ========== -->
+        <div class="section">
+            <h2><span>📋</span> 1. 设计概述</h2>
+
+            <div class="design-grid">
+                <div class="design-card">
+                    <h4>🎯 设计原则</h4>
+                    <div class="design-item">
+                        <div class="design-icon">💻</div>
+                        <div class="design-text">
+                            <div class="label">桌面端优先</div>
+                            <div class="desc">主要针对浏览器桌面端使用场景设计，左右分栏布局充分利用屏幕空间</div>
+                        </div>
+                    </div>
+                    <div class="design-item">
+                        <div class="design-icon">📱</div>
+                        <div class="design-text">
+                            <div class="label">响应式适配</div>
+                            <div class="desc">平板和手机端自动切换为单栏布局，保持良好体验</div>
+                        </div>
+                    </div>
+                    <div class="design-item">
+                        <div class="design-icon">💬</div>
+                        <div class="design-text">
+                            <div class="label">对话优先</div>
+                            <div class="desc">默认进入对话模式，降低用户使用门槛</div>
+                        </div>
+                    </div>
+                    <div class="design-item">
+                        <div class="design-icon">📖</div>
+                        <div class="design-text">
+                            <div class="label">保留原始模式</div>
+                            <div class="desc">顶部标签页切换，满足不同用户偏好</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="design-card">
+                    <h4>📐 响应式断点</h4>
+                    <div class="responsive-demo">
+                        <div class="responsive-item">
+                            <div class="icon">💻</div>
+                            <div class="name">Desktop</div>
+                            <div class="size">≥ 1024px</div>
+                            <div class="layout">左右分栏</div>
+                        </div>
+                        <div class="responsive-item">
+                            <div class="icon">📟</div>
+                            <div class="name">Tablet</div>
+                            <div class="size">768-1023px</div>
+                            <div class="layout">单栏 + 折叠面板</div>
+                        </div>
+                        <div class="responsive-item">
+                            <div class="icon">📱</div>
+                            <div class="name">Mobile</div>
+                            <div class="size">＜ 768px</div>
+                            <div class="layout">纯单栏</div>
+                        </div>
+                    </div>
+
+                    <h4 style="margin-top: 16px;">🎨 配色方案</h4>
+                    <div class="colors">
+                        <div class="color-chip">
+                            <div class="color-dot" style="background: #a78bfa;"></div>
+                            <div><div class="name">主色</div><div class="hex">#a78bfa</div></div>
+                        </div>
+                        <div class="color-chip">
+                            <div class="color-dot" style="background: #818cf8;"></div>
+                            <div><div class="name">辅色</div><div class="hex">#818cf8</div></div>
+                        </div>
+                        <div class="color-chip">
+                            <div class="color-dot" style="background: #0f0f23;"></div>
+                            <div><div class="name">背景</div><div class="hex">#0f0f23</div></div>
+                        </div>
+                        <div class="color-chip">
+                            <div class="color-dot" style="background: #1e1e3c;"></div>
+                            <div><div class="name">卡片</div><div class="hex">#1e1e3c</div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== 2. 桌面端 - 对话模式（默认） ========== -->
+        <div class="section">
+            <h2><span>💬</span> 2. 桌面端 - 对话模式（默认）</h2>
+
+            <p>桌面端采用<strong>左右分栏</strong>布局：左侧展示占卜信息和牌面，右侧为聊天区域。</p>
+
+            <div class="browser-frame" style="margin-top: 20px;">
+                <div class="browser-toolbar">
+                    <div class="browser-dots">
+                        <span class="red"></span>
+                        <span class="yellow"></span>
+                        <span class="green"></span>
+                    </div>
+                    <div class="browser-url">https://zhanbu.example.com/tarot/reading/123</div>
+                </div>
+                <div class="browser-content">
+                    <!-- 页面头部 -->
+                    <div class="page-header">
+                        <div class="page-logo">
+                            <span>🔮</span>
+                            <span>玄机占卜</span>
+                        </div>
+                        <div class="page-nav">
+                            <a href="#">首页</a>
+                            <a href="#" class="active">占卜</a>
+                            <a href="#">历史</a>
+                            <a href="#">我的</a>
+                        </div>
+                        <div class="page-user">
+                            <div class="avatar">👤</div>
+                            <span>用户</span>
+                        </div>
+                    </div>
+
+                    <!-- 主内容区 -->
+                    <div class="desktop-layout">
+                        <!-- 左侧面板 -->
+                        <div class="left-panel">
+                            <!-- 占卜信息 -->
+                            <div class="panel-section">
+                                <div class="panel-title">占卜信息</div>
+                                <div class="divination-info">
+                                    <div class="type">
+                                        <div class="type-icon">🎴</div>
+                                        <div>
+                                            <div class="type-name">塔罗牌 · 三牌阵</div>
+                                            <div class="type-meta">2024-01-15 14:30</div>
+                                        </div>
+                                    </div>
+                                    <div class="question">
+                                        <strong>问题：</strong>我最近的事业运势如何？
+                                    </div>
+                                    <div class="tags">
+                                        <span class="tag">🎴 塔罗牌</span>
+                                        <span class="tag">🃏 三牌阵</span>
+                                        <span class="tag">💼 事业</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 牌面展示 -->
+                            <div class="panel-section">
+                                <div class="panel-title">牌面展示</div>
+                                <div class="cards-display">
+                                    <div class="card-mini">
+                                        <div class="card-emoji">👸</div>
+                                        <div class="card-name">皇后<br>正位</div>
+                                    </div>
+                                    <div class="card-mini">
+                                        <div class="card-emoji">🏎️</div>
+                                        <div class="card-name">战车<br>逆位</div>
+                                    </div>
+                                    <div class="card-mini">
+                                        <div class="card-emoji">☀️</div>
+                                        <div class="card-name">太阳<br>正位</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 模式切换 -->
+                            <div class="panel-section">
+                                <div class="panel-title">显示模式</div>
+                                <div class="mode-switch">
+                                    <button class="mode-btn active">💬 对话模式</button>
+                                    <button class="mode-btn">📖 原始模式</button>
+                                </div>
+                            </div>
+
+                            <!-- 快捷提问 -->
+                            <div class="panel-section">
+                                <div class="panel-title">快捷提问</div>
+                                <div class="quick-questions">
+                                    <div class="quick-btn"><span class="icon">🃏</span> 详细解读这张牌</div>
+                                    <div class="quick-btn"><span class="icon">💡</span> 综合建议</div>
+                                    <div class="quick-btn"><span class="icon">⚠️</span> 注意事项</div>
+                                    <div class="quick-btn"><span class="icon">🔧</span> 如何改善</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 右侧聊天区 -->
+                        <div class="right-panel">
+                            <div class="chat-header">
+                                <div>
+                                    <div class="title">🔮 AI 占卜师</div>
+                                    <div class="subtitle">基于您的占卜结果进行深度解读</div>
+                                </div>
+                                <div class="actions">
+                                    <div class="action-btn">🔄 重新解读</div>
+                                    <div class="action-btn">📋 复制</div>
+                                </div>
+                            </div>
+
+                            <div class="chat-messages">
+                                <!-- AI 首次解读 -->
+                                <div class="msg ai">
+                                    <div class="msg-avatar">🔮</div>
+                                    <div class="msg-body">
+                                        <div class="msg-name">AI 占卜师</div>
+                                        <div class="msg-bubble">
+                                            <p><strong>整体来看：</strong>您的事业正处于一个重要的转折期，三张牌展现了从过去积累到未来光明的完整脉络。</p>
+                                            <p><strong>过去 - 正位皇后：</strong>代表您过去在事业上有稳定的积累和耕耘，基础扎实。皇后牌象征丰饶与滋养，说明您过去的努力为现在打下了坚实基础。</p>
+                                            <p><strong>现在 - 逆位战车：</strong>目前可能遇到了方向迷失或动力不足的困境。战车逆位暗示内在冲突或缺乏控制感，需要重新审视目标。</p>
+                                            <p><strong>未来 - 正位太阳：</strong>非常积极的预示！只要度过当前的低谷，前方是充满希望的成功和光明。</p>
+                                            <p><strong>💡 建议：</strong>保持耐心，重新梳理目标，积极面对当前的挑战。</p>
+                                        </div>
+                                        <div class="msg-time">14:30</div>
+                                    </div>
+                                </div>
+
+                                <!-- 用户追问 -->
+                                <div class="msg user">
+                                    <div class="msg-avatar">👤</div>
+                                    <div class="msg-body">
+                                        <div class="msg-name">我</div>
+                                        <div class="msg-bubble">
+                                            能详细说说逆位战车这张牌吗？我最近确实在工作上遇到了一些困难，感觉方向不太明确。
+                                        </div>
+                                        <div class="msg-time">14:32</div>
+                                    </div>
+                                </div>
+
+                                <!-- AI 回复 -->
+                                <div class="msg ai">
+                                    <div class="msg-avatar">🔮</div>
+                                    <div class="msg-body">
+                                        <div class="msg-name">AI 占卜师</div>
+                                        <div class="msg-bubble">
+                                            <p>关于<strong>逆位战车</strong>，我来为您做更深入的分析：</p>
+                                            <p>战车牌正位时代表意志力、胜利和前进的动力。但当它处于逆位时，往往暗示：</p>
+                                            <p>1. <strong>方向迷失</strong> - 您可能对自己的职业目标感到困惑<br>
+                                            2. <strong>内在冲突</strong> - 内心有两种力量在拉扯<br>
+                                            3. <strong>缺乏控制</strong> - 感觉事情不在自己的掌控之中</p>
+                                            <p>结合您提到的工作困难，这张牌提醒您：现在最重要的是停下来，理清内心真正的想法，而不是盲目地继续前进。</p>
+                                        </div>
+                                        <div class="msg-time">14:32</div>
+                                    </div>
+                                </div>
+
+                                <!-- 打字中 -->
+                                <div class="msg ai">
+                                    <div class="msg-avatar">🔮</div>
+                                    <div class="msg-body">
+                                        <div class="typing">
+                                            <div class="typing-dot"></div>
+                                            <div class="typing-dot"></div>
+                                            <div class="typing-dot"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="chat-input">
+                                <div class="input-row">
+                                    <textarea class="input-field" placeholder="输入您的问题，与 AI 占卜师深入探讨..." rows="1"></textarea>
+                                    <button class="send-btn">↑</button>
+                                </div>
+                                <div class="input-hint">按 Enter 发送，Shift + Enter 换行</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="design-grid" style="margin-top: 24px;">
+                <div class="design-card">
+                    <h4>🎯 左侧面板设计</h4>
+                    <div class="design-item">
+                        <div class="design-icon">🎴</div>
+                        <div class="design-text">
+                            <div class="label">占卜信息卡片</div>
+                            <div class="desc">展示占卜类型、问题、时间等基本信息，使用渐变玻璃态设计</div>
+                        </div>
+                    </div>
+                    <div class="design-item">
+                        <div class="design-icon">🃏</div>
+                        <div class="design-text">
+                            <div class="label">牌面/卦象展示</div>
+                            <div class="desc">展示抽到的牌或卦象，点击可查看详情</div>
+                        </div>
+                    </div>
+                    <div class="design-item">
+                        <div class="design-icon">🔄</div>
+                        <div class="design-text">
+                            <div class="label">模式切换</div>
+                            <div class="desc">对话模式 / 原始模式切换按钮组</div>
+                        </div>
+                    </div>
+                    <div class="design-item">
+                        <div class="design-icon">⚡</div>
+                        <div class="design-text">
+                            <div class="label">快捷提问</div>
+                            <div class="desc">4 个预设问题，点击快速发送，降低输入门槛</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="design-card">
+                    <h4>💬 聊天区设计</h4>
+                    <div class="design-item">
+                        <div class="design-icon">📝</div>
+                        <div class="design-text">
+                            <div class="label">消息气泡</div>
+                            <div class="desc">AI 消息靠左深色背景，用户消息靠右紫色渐变</div>
+                        </div>
+                    </div>
+                    <div class="design-item">
+                        <div class="design-icon">✨</div>
+                        <div class="design-text">
+                            <div class="label">打字动画</div>
+                            <div class="desc">三点跳动动画，增加 AI 回复的真实感</div>
+                        </div>
+                    </div>
+                    <div class="design-item">
+                        <div class="design-icon">📝</div>
+                        <div class="design-text">
+                            <div class="label">多行输入</div>
+                            <div class="desc">支持 Shift+Enter 换行，自动扩展高度</div>
+                        </div>
+                    </div>
+                    <div class="design-item">
+                        <div class="design-icon">📋</div>
+                        <div class="design-text">
+                            <div class="label">操作按钮</div>
+                            <div class="desc">重新解读、复制等常用操作</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== 3. 桌面端 - 原始模式 ========== -->
+        <div class="section">
+            <h2><span>📖</span> 3. 桌面端 - 原始模式</h2>
+
+            <p>原始模式在右侧展示完整的 AI 解读文章，适合喜欢传统阅读体验的用户。</p>
+
+            <div class="browser-frame" style="margin-top: 20px;">
+                <div class="browser-toolbar">
+                    <div class="browser-dots">
+                        <span class="red"></span>
+                        <span class="yellow"></span>
+                        <span class="green"></span>
+                    </div>
+                    <div class="browser-url">https://zhanbu.example.com/tarot/reading/123</div>
+                </div>
+                <div class="browser-content">
+                    <!-- 页面头部 -->
+                    <div class="page-header">
+                        <div class="page-logo">
+                            <span>🔮</span>
+                            <span>玄机占卜</span>
+                        </div>
+                        <div class="page-nav">
+                            <a href="#">首页</a>
+                            <a href="#" class="active">占卜</a>
+                            <a href="#">历史</a>
+                            <a href="#">我的</a>
+                        </div>
+                        <div class="page-user">
+                            <div class="avatar">👤</div>
+                            <span>用户</span>
+                        </div>
+                    </div>
+
+                    <!-- 主内容区 -->
+                    <div class="desktop-layout">
+                        <!-- 左侧面板 -->
+                        <div class="left-panel">
+                            <div class="panel-section">
+                                <div class="panel-title">占卜信息</div>
+                                <div class="divination-info">
+                                    <div class="type">
+                                        <div class="type-icon">🎴</div>
+                                        <div>
+                                            <div class="type-name">塔罗牌 · 三牌阵</div>
+                                            <div class="type-meta">2024-01-15 14:30</div>
+                                        </div>
+                                    </div>
+                                    <div class="question">
+                                        <strong>问题：</strong>我最近的事业运势如何？
+                                    </div>
+                                    <div class="tags">
+                                        <span class="tag">🎴 塔罗牌</span>
+                                        <span class="tag">🃏 三牌阵</span>
+                                        <span class="tag">💼 事业</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="panel-section">
+                                <div class="panel-title">牌面展示</div>
+                                <div class="cards-display">
+                                    <div class="card-mini">
+                                        <div class="card-emoji">👸</div>
+                                        <div class="card-name">皇后<br>正位</div>
+                                    </div>
+                                    <div class="card-mini">
+                                        <div class="card-emoji">🏎️</div>
+                                        <div class="card-name">战车<br>逆位</div>
+                                    </div>
+                                    <div class="card-mini">
+                                        <div class="card-emoji">☀️</div>
+                                        <div class="card-name">太阳<br>正位</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="panel-section">
+                                <div class="panel-title">显示模式</div>
+                                <div class="mode-switch">
+                                    <button class="mode-btn">💬 对话模式</button>
+                                    <button class="mode-btn active">📖 原始模式</button>
+                                </div>
+                            </div>
+
+                            <div class="panel-section">
+                                <button style="width: 100%; padding: 12px; background: rgba(167, 139, 250, 0.15); border: 1px solid rgba(167, 139, 250, 0.3); border-radius: 10px; color: #a78bfa; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                                    💬 切换到对话模式追问
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 右侧内容区 -->
+                        <div class="right-panel">
+                            <div class="chat-header">
+                                <div>
+                                    <div class="title">📖 AI 深度解读</div>
+                                    <div class="subtitle">完整的占卜结果分析</div>
+                                </div>
+                                <div class="actions">
+                                    <div class="action-btn">🔄 重新解读</div>
+                                    <div class="action-btn">📋 复制全文</div>
+                                </div>
+                            </div>
+
+                            <div class="classic-mode">
+                                <div class="classic-reading">
+                                    <h4>✨ AI 深度解读</h4>
+                                    <div class="content">
+                                        <p><strong>【整体解读】</strong></p>
+                                        <p>根据您的塔罗牌占卜结果，三张牌展现了从过去积累到未来光明的完整脉络。整体能量流动顺畅，暗示您的事业虽然目前面临挑战，但前景十分乐观。</p>
+
+                                        <p><strong>【各牌解读】</strong></p>
+                                        <p><strong>过去 - 正位皇后：</strong>皇后牌代表丰饶、滋养和稳定的成长。在过去的位置上，它表明您在事业上有过一段稳定积累的时期，打下了坚实的基础。这段时间的努力和付出，为您积累了宝贵的经验和资源。</p>
+
+                                        <p><strong>现在 - 逆位战车：</strong>战车牌正位时代表意志力、胜利和前进的动力。但当它处于逆位时，往往暗示方向迷失、内在冲突或缺乏控制感。您可能目前感到职业目标不够清晰，或者内心有两种力量在拉扯，导致前进受阻。</p>
+
+                                        <p><strong>未来 - 正位太阳：</strong>太阳牌是塔罗中最积极的牌之一，代表成功、快乐和光明的未来。在未来的位置上，这是一个非常积极的预示，暗示只要您能度过当前的低谷期，前方等待您的是事业上的重大突破和成功。</p>
+
+                                        <p><strong>【综合建议】</strong></p>
+                                        <p>1. 停下来重新审视自己的职业目标和方向</p>
+                                        <p>2. 回顾过去皇后时期的成功经验，寻找可复用的方法</p>
+                                        <p>3. 保持积极心态，相信困难是暂时的</p>
+                                        <p>4. 多与信任的人交流，获取新的视角和建议</p>
+
+                                        <p><strong>【注意事项】</strong></p>
+                                        <p>逆位战车提醒您不要盲目行动，在方向不明确时贸然前进可能会适得其反。建议先理清思路，再稳步前行。</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== 4. 移动端布局 ========== -->
+        <div class="section">
+            <h2><span>📱</span> 4. 移动端布局（响应式）</h2>
+
+            <p>在平板和手机端，左右分栏自动切换为<strong>单栏布局</strong>，占卜信息可折叠。</p>
+
+            <div class="design-grid">
+                <div class="design-card">
+                    <h4>📱 移动端对话模式</h4>
+                    <div class="layout-diagram">
+<pre>
+┌─────────────────────────────┐
+│  ← 返回   塔罗牌解读   ⋯  │
+├─────────────────────────────┤
+│  [💬对话] [📖原始]         │
+├─────────────────────────────┤
+│  ┌───────────────────────┐  │
+│  │ 🎴 塔罗牌·三牌阵     │  │
+│  │ 问题：事业运势...     │  │
+│  │ [展开详情]            │  │
+│  └───────────────────────┘  │
+│                             │
+│  ┌───────────────────────┐  │
+│  │ 🔮 AI占卜师           │  │
+│  │ 整体来看：您的事业... │  │
+│  └───────────────────────┘  │
+│                             │
+│        👤 我               │
+│  ┌───────────────────────┐  │
+│  │ 能详细说说这张牌吗？  │  │
+│  └───────────────────────┘  │
+│                             │
+│  ┌───────────────────────┐  │
+│  │ 🔮 关于逆位战车...    │  │
+│  └───────────────────────┘  │
+│                             │
+├─────────────────────────────┤
+│  [🃏详细] [💡建议] [⚠️注意]│
+├─────────────────────────────┤
+│  [输入问题...]      [发送] │
+└─────────────────────────────┘
+</pre>
+                    </div>
+                </div>
+
+                <div class="design-card">
+                    <h4>📱 移动端原始模式</h4>
+                    <div class="layout-diagram">
+<pre>
+┌─────────────────────────────┐
+│  ← 返回   塔罗牌解读   ⋯  │
+├─────────────────────────────┤
+│  [💬对话] [📖原始]         │
+├─────────────────────────────┤
+│  ┌───────────────────────┐  │
+│  │ 🎴 塔罗牌·三牌阵     │  │
+│  │ 问题：事业运势...     │  │
+│  │ [展开详情]            │  │
+│  └───────────────────────┘  │
+│                             │
+│  ┌───────────────────────┐  │
+│  │ ✨ AI 深度解读        │  │
+│  │                       │  │
+│  │ 【整体解读】          │  │
+│  │ 根据您的塔罗牌...    │  │
+│  │                       │  │
+│  │ 【各牌解读】          │  │
+│  │ 过去 - 正位皇后：    │  │
+│  │ 皇后牌代表丰饶...    │  │
+│  │                       │  │
+│  │ ...                   │  │
+│  └───────────────────────┘  │
+│                             │
+├─────────────────────────────┤
+│  [🔄重新解读] [💬对话追问] │
+└─────────────────────────────┘
+</pre>
+                    </div>
+                </div>
+            </div>
+
+            <div class="design-card" style="margin-top: 16px;">
+                <h4>📱 移动端设计要点</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="design-item">
+                        <div class="design-icon">📦</div>
+                        <div class="design-text">
+                            <div class="label">信息可折叠</div>
+                            <div class="desc">占卜信息默认折叠，点击展开查看详情，节省屏幕空间</div>
+                        </div>
+                    </div>
+                    <div class="design-item">
+                        <div class="design-icon">📌</div>
+                        <div class="design-text">
+                            <div class="label">固定头部</div>
+                            <div class="desc">导航栏和模式切换固定顶部，滚动时保持可见</div>
+                        </div>
+                    </div>
+                    <div class="design-item">
+                        <div class="design-icon">⌨️</div>
+                        <div class="design-text">
+                            <div class="label">底部输入</div>
+                            <div class="desc">输入框固定底部，适配手机键盘弹出</div>
+                        </div>
+                    </div>
+                    <div class="design-item">
+                        <div class="design-icon">👆</div>
+                        <div class="design-text">
+                            <div class="label">触摸优化</div>
+                            <div class="desc">按钮加大点击区域，支持滑动返回</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== 5. 历史记录页 ========== -->
+        <div class="section">
+            <h2><span>📜</span> 5. 历史记录页设计</h2>
+
+            <div class="browser-frame" style="margin-top: 20px;">
+                <div class="browser-toolbar">
+                    <div class="browser-dots">
+                        <span class="red"></span>
+                        <span class="yellow"></span>
+                        <span class="green"></span>
+                    </div>
+                    <div class="browser-url">https://zhanbu.example.com/history</div>
+                </div>
+                <div class="browser-content">
+                    <div class="page-header">
+                        <div class="page-logo">
+                            <span>🔮</span>
+                            <span>玄机占卜</span>
+                        </div>
+                        <div class="page-nav">
+                            <a href="#">首页</a>
+                            <a href="#">占卜</a>
+                            <a href="#" class="active">历史</a>
+                            <a href="#">我的</a>
+                        </div>
+                        <div class="page-user">
+                            <div class="avatar">👤</div>
+                            <span>用户</span>
+                        </div>
+                    </div>
+
+                    <div style="padding: 24px; flex: 1; overflow-y: auto;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2 style="font-size: 20px; color: #e2e8f0;">📜 占卜历史</h2>
+                            <div style="display: flex; gap: 8px;">
+                                <button style="padding: 6px 12px; background: rgba(167, 139, 250, 0.15); border: 1px solid rgba(167, 139, 250, 0.3); border-radius: 6px; color: #a78bfa; font-size: 12px; cursor: pointer;">全部</button>
+                                <button style="padding: 6px 12px; background: rgba(100, 100, 200, 0.1); border: 1px solid rgba(100, 100, 200, 0.15); border-radius: 6px; color: #818cf8; font-size: 12px; cursor: pointer;">塔罗牌</button>
+                                <button style="padding: 6px 12px; background: rgba(100, 100, 200, 0.1); border: 1px solid rgba(100, 100, 200, 0.15); border-radius: 6px; color: #818cf8; font-size: 12px; cursor: pointer;">六爻</button>
+                                <button style="padding: 6px 12px; background: rgba(100, 100, 200, 0.1); border: 1px solid rgba(100, 100, 200, 0.15); border-radius: 6px; color: #818cf8; font-size: 12px; cursor: pointer;">八字</button>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px;">
+                            <!-- 记录卡片 1 -->
+                            <div style="background: rgba(30, 30, 60, 0.8); border: 1px solid rgba(100, 100, 200, 0.15); border-radius: 14px; padding: 18px;">
+                                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                                    <div style="width: 44px; height: 44px; background: linear-gradient(135deg, rgba(167, 139, 250, 0.3), rgba(96, 165, 250, 0.3)); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px;">🔮</div>
+                                    <div style="flex: 1;">
+                                        <div style="font-size: 14px; font-weight: 600; color: #e2e8f0;">塔罗牌 · 三牌阵</div>
+                                        <div style="font-size: 12px; color: #64748b;">2024-01-15 14:30</div>
+                                    </div>
+                                    <div style="background: rgba(167, 139, 250, 0.15); border-radius: 8px; padding: 4px 10px;">
+                                        <span style="font-size: 11px; color: #a78bfa;">💬 5条对话</span>
+                                    </div>
+                                </div>
+                                <div style="font-size: 13px; color: #94a3b8; margin-bottom: 14px;">
+                                    <strong style="color: #c4b5fd;">问题：</strong>我最近的事业运势如何？
+                                </div>
+                                <div style="display: flex; gap: 8px;">
+                                    <button style="flex: 1; padding: 10px; background: linear-gradient(135deg, rgba(167, 139, 250, 0.2), rgba(129, 140, 248, 0.15)); border: 1px solid rgba(167, 139, 250, 0.3); border-radius: 10px; color: #a78bfa; font-size: 13px; cursor: pointer; font-weight: 600;">💬 继续对话</button>
+                                    <button style="flex: 1; padding: 10px; background: rgba(100, 100, 200, 0.1); border: 1px solid rgba(100, 100, 200, 0.15); border-radius: 10px; color: #818cf8; font-size: 13px; cursor: pointer;">📖 查看详情</button>
+                                </div>
+                            </div>
+
+                            <!-- 记录卡片 2 -->
+                            <div style="background: rgba(30, 30, 60, 0.8); border: 1px solid rgba(100, 100, 200, 0.15); border-radius: 14px; padding: 18px;">
+                                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                                    <div style="width: 44px; height: 44px; background: linear-gradient(135deg, rgba(52, 211, 153, 0.3), rgba(16, 185, 129, 0.3)); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px;">☯️</div>
+                                    <div style="flex: 1;">
+                                        <div style="font-size: 14px; font-weight: 600; color: #e2e8f0;">六爻 · 高岛易断</div>
+                                        <div style="font-size: 12px; color: #64748b;">2024-01-14 10:15</div>
+                                    </div>
+                                    <div style="background: rgba(100, 100, 200, 0.1); border-radius: 8px; padding: 4px 10px;">
+                                        <span style="font-size: 11px; color: #64748b;">📖 仅解读</span>
+                                    </div>
+                                </div>
+                                <div style="font-size: 13px; color: #94a3b8; margin-bottom: 14px;">
+                                    <strong style="color: #c4b5fd;">问题：</strong>这次跳槽是否合适？
+                                </div>
+                                <div style="display: flex; gap: 8px;">
+                                    <button style="flex: 1; padding: 10px; background: linear-gradient(135deg, rgba(167, 139, 250, 0.2), rgba(129, 140, 248, 0.15)); border: 1px solid rgba(167, 139, 250, 0.3); border-radius: 10px; color: #a78bfa; font-size: 13px; cursor: pointer; font-weight: 600;">💬 开始对话</button>
+                                    <button style="flex: 1; padding: 10px; background: rgba(100, 100, 200, 0.1); border: 1px solid rgba(100, 100, 200, 0.15); border-radius: 10px; color: #818cf8; font-size: 13px; cursor: pointer;">📖 查看详情</button>
+                                </div>
+                            </div>
+
+                            <!-- 记录卡片 3 -->
+                            <div style="background: rgba(30, 30, 60, 0.8); border: 1px solid rgba(100, 100, 200, 0.15); border-radius: 14px; padding: 18px;">
+                                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                                    <div style="width: 44px; height: 44px; background: linear-gradient(135deg, rgba(251, 191, 36, 0.3), rgba(245, 158, 11, 0.3)); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px;">📋</div>
+                                    <div style="flex: 1;">
+                                        <div style="font-size: 14px; font-weight: 600; color: #e2e8f0;">八字排盘</div>
+                                        <div style="font-size: 12px; color: #64748b;">2024-01-12 16:45</div>
+                                    </div>
+                                    <div style="background: rgba(167, 139, 250, 0.15); border-radius: 8px; padding: 4px 10px;">
+                                        <span style="font-size: 11px; color: #a78bfa;">💬 3条对话</span>
+                                    </div>
+                                </div>
+                                <div style="font-size: 13px; color: #94a3b8; margin-bottom: 14px;">
+                                    <strong style="color: #c4b5fd;">信息：</strong>1990-08-15 辰时
+                                </div>
+                                <div style="display: flex; gap: 8px;">
+                                    <button style="flex: 1; padding: 10px; background: rgba(167, 139, 250, 0.15); border: 1px solid rgba(167, 139, 250, 0.3); border-radius: 10px; color: #a78bfa; font-size: 13px; cursor: pointer;">💬 继续对话</button>
+                                    <button style="flex: 1; padding: 10px; background: rgba(100, 100, 200, 0.1); border: 1px solid rgba(100, 100, 200, 0.15); border-radius: 10px; color: #818cf8; font-size: 13px; cursor: pointer;">📖 查看详情</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== 6. 审核确认 ========== -->
+        <div class="section approval-section">
+            <h2><span>✅</span> UI 设计方案审核</h2>
+            <p style="font-size: 1.1em; margin-bottom: 10px; color: #94a3b8;">
+                以上为网页端聊天模式的 UI 设计方案，请审阅。
+            </p>
+            <p style="font-size: 0.95em; color: #64748b; margin-bottom: 30px;">
+                主要改动：桌面端优先 → 左右分栏布局 → 响应式适配
+            </p>
+            <div class="approval-options">
+                <div class="approval-card green">
+                    <div class="icon">👍</div>
+                    <div class="title">设计通过</div>
+                    <div class="desc">开始实现</div>
+                </div>
+                <div class="approval-card yellow">
+                    <div class="icon">💬</div>
+                    <div class="title">需要调整</div>
+                    <div class="desc">提出修改意见</div>
+                </div>
+                <div class="approval-card red">
+                    <div class="icon">🔄</div>
+                    <div class="title">重新设计</div>
+                    <div class="desc">大方向需调整</div>
+                </div>
+            </div>
+        </div>
+
+        <p style="text-align: center; color: #475569; margin-top: 40px; font-size: 0.9em;">
+            📄 占卜聊天模式 UI 设计方案 v3.0 · 网页端优先 · 2026-06-21
+        </p>
+    </div>
+</body>
+</html>

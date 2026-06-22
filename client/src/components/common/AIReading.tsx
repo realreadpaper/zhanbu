@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
+import { useNavigate } from 'react-router-dom'
 import { useAI } from '../../hooks/useAI'
 
 export interface AIReadingProps {
@@ -18,6 +19,7 @@ export interface AIReadingProps {
  * AIReading component displays an AI interpretation button and streaming result.
  */
 export default function AIReading({ type, resultId, result, question, show = true }: AIReadingProps) {
+  const navigate = useNavigate()
   const { text, isStreaming, isDone, error, start } = useAI({
     type,
     resultId,
@@ -215,20 +217,39 @@ export default function AIReading({ type, resultId, result, question, show = tru
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="mt-4 flex items-center gap-2 text-emerald-400 text-sm"
+                  className="mt-4 space-y-3"
                 >
-                  <svg
-                    className="w-4 h-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  <span>解读完成</span>
+                  <div className="flex items-center gap-2 text-emerald-400 text-sm">
+                    <svg
+                      className="w-4 h-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span>解读完成</span>
+                  </div>
+
+                  {/* Enter chat mode button */}
+                  {resultId && (
+                    <motion.button
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.3 }}
+                      onClick={() => navigate(`/chat/${resultId}`)}
+                      className="w-full px-4 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-xl font-medium text-sm shadow-lg shadow-violet-500/20 transition-all flex items-center justify-center gap-2"
+                    >
+                      💬 继续对话，深入探讨
+                    </motion.button>
+                  )}
+
+                  <p className="text-xs text-slate-500 text-center">
+                    想了解更多？进入对话模式继续提问
+                  </p>
                 </motion.div>
               )}
             </div>

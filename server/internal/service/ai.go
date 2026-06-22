@@ -33,6 +33,10 @@ type AIProvider interface {
 	// Interpret generates an AI interpretation for a divination result.
 	// It should return a channel that streams text chunks.
 	Interpret(divinationType string, result string, question string) (<-chan string, error)
+
+	// ChatCompletion generates a chat response given a list of messages.
+	// It should return a channel that streams text chunks.
+	ChatCompletion(messages []map[string]string) (<-chan string, error)
 }
 
 // OpenAIProvider implements AIProvider using OpenAI-compatible API.
@@ -228,6 +232,118 @@ func (p *OpenAIProvider) Interpret(divinationType string, result string, questio
 				Str("component", "ai").
 				Str("divination_type", divinationType).
 				Msg("AI stream ended without completion marker")
+		}
+	}()
+
+	return ch, nil
+}
+
+// ChatCompletion streams a chat response given a list of messages.
+func (p *OpenAIProvider) ChatCompletion(messages []map[string]string) (<-chan string, error) {
+	// Make streaming API request
+	reqBody := map[string]interface{}{
+		"model":       p.model,
+		"messages":    messages,
+		"max_tokens":  p.maxTokens,
+		"temperature": p.temperature,
+		"stream":      true,
+	}
+
+	jsonBody, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	apiURL := strings.TrimRight(p.baseURL, "/") + "/chat/completions"
+	req, err := http.NewRequest("POST", apiURL, bytes.NewReader(jsonBody))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+p.apiKey)
+
+	resp, err := p.client.Do(req)
+	if err != nil {
+		return nil, apperrors.NewWithErr(apperrors.ErrAIServiceUnavailable, "AI service request failed", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		return nil, apperrors.New(apperrors.ErrAIServiceUnavailable,
+			fmt.Sprintf("AI service returned status %d: %s", resp.StatusCode, string(body)))
+	}
+
+	// Parse streaming response
+	ch := make(chan string, 100)
+	go func() {
+		defer close(ch)
+		defer resp.Body.Close()
+
+		scanner := bufio.NewScanner(resp.Body)
+		var outputChars int
+		var finished bool
+		for scanner.Scan() {
+			line := scanner.Text()
+			if line == "" {
+				continue
+			}
+			if !strings.HasPrefix(line, "data: ") {
+				continue
+			}
+			data := strings.TrimPrefix(line, "data: ")
+			if data == "[DONE]" {
+				finished = true
+				return
+			}
+
+			var chunk struct {
+				Choices []struct {
+					Delta struct {
+						Content string `json:"content"`
+					} `json:"delta"`
+					FinishReason string `json:"finish_reason"`
+				} `json:"choices"`
+			}
+			if err := json.Unmarshal([]byte(data), &chunk); err != nil {
+				log.Warn().
+					Str("component", "ai").
+					Err(err).
+					Str("raw_chunk", data).
+					Msg("failed to parse AI stream chunk")
+				continue
+			}
+			if len(chunk.Choices) > 0 {
+				if chunk.Choices[0].Delta.Content != "" {
+					outputChars += len([]rune(chunk.Choices[0].Delta.Content))
+					ch <- chunk.Choices[0].Delta.Content
+				}
+				if chunk.Choices[0].FinishReason != "" {
+					if chunk.Choices[0].FinishReason == "length" {
+						ch <- incompleteLengthNotice
+					}
+					finished = true
+					log.Info().
+						Str("component", "ai").
+						Str("finish_reason", chunk.Choices[0].FinishReason).
+						Int("output_chars", outputChars).
+						Int("max_tokens", p.maxTokens).
+						Msg("AI chat stream finished")
+				}
+			}
+		}
+		if err := scanner.Err(); err != nil {
+			ch <- incompleteConnectionNotice
+			log.Warn().
+				Str("component", "ai").
+				Err(err).
+				Msg("AI chat stream scanner stopped with error")
+		} else if !finished {
+			ch <- incompleteConnectionNotice
+			log.Warn().
+				Str("component", "ai").
+				Msg("AI chat stream ended without completion marker")
 		}
 	}()
 
@@ -476,6 +592,21 @@ func (m *MockAIProvider) Interpret(divinationType string, result string, questio
 	go func() {
 		defer close(ch)
 		// Send the full response as a single chunk for reliable testing
+		if m.Response != "" {
+			ch <- m.Response
+		}
+	}()
+	return ch, nil
+}
+
+// ChatCompletion returns a mock chat response.
+func (m *MockAIProvider) ChatCompletion(messages []map[string]string) (<-chan string, error) {
+	if m.Err != nil {
+		return nil, m.Err
+	}
+	ch := make(chan string, 100)
+	go func() {
+		defer close(ch)
 		if m.Response != "" {
 			ch <- m.Response
 		}
