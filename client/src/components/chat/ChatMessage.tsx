@@ -1,17 +1,21 @@
 import { motion } from 'framer-motion'
 import type { ChatMessage as ChatMessageType } from '../../services/chat'
+import { getDivinationPersona } from './divinationPersona'
 
 interface ChatMessageProps {
   message: ChatMessageType
   isStreaming?: boolean
+  /** Current divination type for persona display */
+  divinationType?: string
 }
 
 /**
  * ChatMessage component displays a single chat message bubble.
  */
-export default function ChatMessage({ message, isStreaming }: ChatMessageProps) {
+export default function ChatMessage({ message, isStreaming, divinationType }: ChatMessageProps) {
   const isUser = message.role === 'user'
   const isAssistant = message.role === 'assistant'
+  const persona = divinationType ? getDivinationPersona(divinationType) : null
 
   // Format time
   const formatTime = (dateStr: string) => {
@@ -56,14 +60,14 @@ export default function ChatMessage({ message, isStreaming }: ChatMessageProps) 
             : 'bg-gradient-to-br from-emerald-500/30 to-teal-500/30'
         }`}
       >
-        {isAssistant ? '🔮' : '👤'}
+        {isAssistant ? (persona?.icon || '🔮') : '👤'}
       </div>
 
       {/* Message content */}
       <div className={`flex-1 min-w-0 ${isUser ? 'text-right' : ''}`}>
         {/* Name */}
         <div className={`text-xs text-slate-500 mb-1 px-1 ${isUser ? 'text-right' : ''}`}>
-          {isAssistant ? 'AI 占卜师' : '我'}
+          {isAssistant ? (persona?.name || 'AI 占卜师') : '我'}
         </div>
 
         {/* Bubble */}

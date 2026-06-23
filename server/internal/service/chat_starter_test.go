@@ -24,7 +24,7 @@ func (r *chatStarterRecordRepo) Create(record *model.DivinationRecord) error {
 
 func TestChatModeStarterStartsBaZiRecord(t *testing.T) {
 	repo := &chatStarterRecordRepo{}
-	starter := NewChatModeStarter(repo, nil, nil, NewBaZiService(), nil)
+	starter := NewChatModeStarter(repo, nil, nil, NewBaZiService(), nil, nil)
 
 	record, err := starter.Start(7, "bazi", "1990-05-12 08:30 女，看看事业")
 
@@ -42,7 +42,7 @@ func TestChatModeStarterStartsBaZiRecord(t *testing.T) {
 }
 
 func TestChatModeStarterRejectsBaZiWithoutBirthTime(t *testing.T) {
-	starter := NewChatModeStarter(&chatStarterRecordRepo{}, nil, nil, NewBaZiService(), nil)
+	starter := NewChatModeStarter(&chatStarterRecordRepo{}, nil, nil, NewBaZiService(), nil, nil)
 
 	record, err := starter.Start(7, "bazi", "看看我的事业")
 

@@ -57,6 +57,7 @@ function RitualVisual({ persona }: DivinationRitualProps) {
   if (persona.type === 'tarot') return <TarotVisual persona={persona} />
   if (persona.type === 'bazi') return <BaziVisual persona={persona} />
   if (persona.type === 'horoscope') return <HoroscopeVisual persona={persona} />
+  if (persona.type === 'meihua') return <MeiHuaVisual persona={persona} />
   return <LiuYaoVisual persona={persona} />
 }
 
@@ -152,6 +153,71 @@ function HoroscopeVisual({ persona }: DivinationRitualProps) {
             transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
           />
         </svg>
+      </motion.div>
+    </div>
+  )
+}
+
+function MeiHuaVisual({ persona }: DivinationRitualProps) {
+  // Plum blossom petals falling animation
+  const petals = [
+    { x: 20, delay: 0, duration: 2.2 },
+    { x: 50, delay: 0.3, duration: 2.5 },
+    { x: 80, delay: 0.15, duration: 2.0 },
+    { x: 35, delay: 0.45, duration: 2.3 },
+    { x: 65, delay: 0.25, duration: 2.1 },
+  ]
+
+  return (
+    <div className="mt-4 flex h-20 items-center justify-center relative overflow-hidden">
+      {/* Falling petals */}
+      {petals.map((petal, i) => (
+        <motion.span
+          key={i}
+          className={`absolute text-xs bg-gradient-to-br ${persona.accentClass} bg-clip-text text-transparent`}
+          style={{ left: `${petal.x}%` }}
+          initial={{ y: -10, opacity: 0, rotate: 0 }}
+          animate={{
+            y: [-10, 60],
+            opacity: [0, 1, 1, 0],
+            rotate: [0, 180],
+          }}
+          transition={{
+            duration: petal.duration,
+            repeat: Infinity,
+            delay: petal.delay,
+            ease: 'easeInOut',
+          }}
+        >
+          🌸
+        </motion.span>
+      ))}
+      {/* Central trigram symbol */}
+      <motion.div
+        className="relative z-10 flex flex-col items-center gap-1"
+        animate={{ scale: [0.9, 1.05, 0.9], opacity: [0.6, 1, 0.6] }}
+        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+      >
+        <div className="flex gap-3">
+          <motion.div
+            className="flex flex-col gap-0.5"
+            animate={{ x: [-2, 2, -2] }}
+            transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <span className={`block h-1 w-6 rounded-full bg-gradient-to-r ${persona.accentClass}`} />
+            <span className={`block h-1 w-6 rounded-full bg-gradient-to-r ${persona.accentClass}`} />
+            <span className={`block h-1 w-6 rounded-full bg-gradient-to-r ${persona.accentClass}`} />
+          </motion.div>
+          <motion.div
+            className="flex flex-col gap-0.5"
+            animate={{ x: [2, -2, 2] }}
+            transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut', delay: 0.3 }}
+          >
+            <span className={`block h-1 w-6 rounded-full bg-gradient-to-r ${persona.accentClass}`} />
+            <span className={`block h-1 w-6 rounded-full bg-gradient-to-r ${persona.accentClass}`} />
+            <span className={`block h-1 w-6 rounded-full bg-gradient-to-r ${persona.accentClass}`} />
+          </motion.div>
+        </div>
       </motion.div>
     </div>
   )

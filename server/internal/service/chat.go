@@ -60,6 +60,7 @@ type ChatService struct {
 	starter          ChatDivinationStarter
 	promptTmpl       string
 	liuyaoPromptTmpl string
+	meihuaPromptTmpl string
 }
 
 // NewChatService creates a new ChatService.
@@ -84,6 +85,14 @@ func NewChatService(chatRepo ChatRepository, recordReader DivinationRecordReader
 		log.Error().Err(err).Msg("failed to load liuyao v2 prompt template")
 	} else {
 		svc.liuyaoPromptTmpl = string(liuyaoData)
+	}
+
+	// Load meihua prompt template
+	meihuaData, err := chatPromptTemplates.ReadFile("prompts/meihua_prompt.txt")
+	if err != nil {
+		log.Error().Err(err).Msg("failed to load meihua prompt template")
+	} else {
+		svc.meihuaPromptTmpl = string(meihuaData)
 	}
 
 	return svc
@@ -373,6 +382,11 @@ func (s *ChatService) buildSystemPrompt(record *model.DivinationRecord) string {
 		return s.buildLiuyaoPrompt(record)
 	}
 
+	// For meihua, use meihua-specific prompt
+	if record.Type == "meihua" && s.meihuaPromptTmpl != "" {
+		return s.buildMeihuaPrompt(record)
+	}
+
 	// For other types, use general prompt
 	if s.promptTmpl == "" {
 		// Fallback if template not loaded
@@ -424,6 +438,74 @@ func (s *ChatService) buildLiuyaoPrompt(record *model.DivinationRecord) string {
 	}
 
 	return prompt
+}
+
+// buildMeihuaPrompt builds the prompt for meihua divination.
+func (s *ChatService) buildMeihuaPrompt(record *model.DivinationRecord) string {
+	prompt := s.meihuaPromptTmpl
+
+	var reading struct {
+		Method     string              `json:"method"`
+		BenGua     model.MeiHuaHexagram `json:"ben_gua"`
+		HuGua      model.MeiHuaHexagram `json:"hu_gua"`
+		BianGua    model.MeiHuaHexagram `json:"bian_gua"`
+		MovingLine int                 `json:"moving_line"`
+		TiYong     model.MeiHuaTiYong   `json:"ti_yong"`
+	}
+	if err := json.Unmarshal([]byte(record.Result), &reading); err != nil {
+		log.Error().Err(err).Msg("failed to parse meihua result for chat prompt")
+		return fmt.Sprintf("你是一位精通梅花易数的卦师。用户进行了梅花易数占卜，问题是：%s\n\n占卜结果：\n%s\n\n请基于这个占卜结果为用户提供解读和答疑。",
+			record.Question, record.Result)
+	}
+
+	methodDesc := formatMeihuaMethodDesc(reading.Method, record.Result)
+
+	prompt = strings.ReplaceAll(prompt, "{{.Question}}", record.Question)
+	prompt = strings.ReplaceAll(prompt, "{{.Method}}", methodDesc)
+	prompt = strings.ReplaceAll(prompt, "{{.BenGua}}", formatMeihuaHexagram(reading.BenGua))
+	prompt = strings.ReplaceAll(prompt, "{{.HuGua}}", formatMeihuaHexagram(reading.HuGua))
+	prompt = strings.ReplaceAll(prompt, "{{.BianGua}}", formatMeihuaHexagram(reading.BianGua))
+	prompt = strings.ReplaceAll(prompt, "{{.MovingLine}}", formatMovingLine(reading.MovingLine))
+	prompt = strings.ReplaceAll(prompt, "{{.Ti}}", fmt.Sprintf("%s（%s）", reading.TiYong.Ti.Name, reading.TiYong.Ti.Element))
+	prompt = strings.ReplaceAll(prompt, "{{.Yong}}", fmt.Sprintf("%s（%s）", reading.TiYong.Yong.Name, reading.TiYong.Yong.Element))
+	prompt = strings.ReplaceAll(prompt, "{{.TiYongRelation}}", reading.TiYong.Relation)
+
+	return prompt
+}
+
+// formatMeihuaMethodDesc formats the method description for the prompt.
+func formatMeihuaMethodDesc(method string, resultJSON string) string {
+	if method == "number" {
+		var r struct {
+			SourceValues struct {
+				Numbers []int `json:"numbers"`
+			} `json:"source_values"`
+		}
+		if json.Unmarshal([]byte(resultJSON), &r) == nil && len(r.SourceValues.Numbers) > 0 {
+			numStrs := make([]string, len(r.SourceValues.Numbers))
+			for i, n := range r.SourceValues.Numbers {
+				numStrs[i] = fmt.Sprintf("%d", n)
+			}
+			return fmt.Sprintf("数字起卦（%s）", strings.Join(numStrs, "、"))
+		}
+		return "数字起卦"
+	}
+	// 时间起卦：提取农历信息
+	var r struct {
+		SourceValues struct {
+			YearBranch string `json:"year_branch"`
+			LunarMonth int    `json:"lunar_month"`
+			LunarDay   int    `json:"lunar_day"`
+			HourBranch string `json:"hour_branch"`
+		} `json:"source_values"`
+	}
+	if json.Unmarshal([]byte(resultJSON), &r) == nil {
+		sv := r.SourceValues
+		if sv.YearBranch != "" && sv.LunarMonth > 0 && sv.LunarDay > 0 && sv.HourBranch != "" {
+			return fmt.Sprintf("时间起卦（%s年%d月%d日%s时）", sv.YearBranch, sv.LunarMonth, sv.LunarDay, sv.HourBranch)
+		}
+	}
+	return "时间起卦"
 }
 
 // collectAndSaveResponse collects the full AI response and saves it.
@@ -484,6 +566,8 @@ func getTypeName(typeName string) string {
 		return "八字"
 	case "horoscope":
 		return "星座"
+	case "meihua":
+		return "梅花易数"
 	default:
 		return typeName
 	}
@@ -491,7 +575,7 @@ func getTypeName(typeName string) string {
 
 func normalizeChatDivinationType(typeName string) string {
 	switch typeName {
-	case "tarot", "bazi", "horoscope":
+	case "tarot", "bazi", "horoscope", "meihua":
 		return typeName
 	case "liuyao", "liuyao_v2":
 		return "liuyao_v2"

@@ -60,6 +60,7 @@ var typeCNMap = map[string]string{
 	"liuyao":    "六爻",
 	"liuyao_v2": "高岛易断",
 	"bazi":      "八字",
+	"meihua":    "梅花易数",
 }
 
 // buildSummary creates a short summary from the result JSON.

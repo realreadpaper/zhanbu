@@ -143,6 +143,16 @@ func SetupRouter(db *gorm.DB, cfg *config.Config, logger zerolog.Logger) *gin.En
 		baziGroup.POST("/calculate", authMiddleware, baziHandler.Calculate)
 	}
 
+	// MeiHua (梅花易数) routes
+	meihuaService := service.NewMeiHuaService()
+	meihuaHandler := handler.NewMeiHuaHandler(meihuaService, divinationRepo)
+	meihuaGroup := r.Group("/api/meihua")
+	meihuaGroup.Use(authMiddleware)
+	{
+		meihuaGroup.POST("/calculate/time", meihuaHandler.CalculateByTime)
+		meihuaGroup.POST("/calculate/numbers", meihuaHandler.CalculateByNumbers)
+	}
+
 	// History routes (authenticated)
 	historyService := service.NewHistoryService(divinationRepo)
 	historyHandler := handler.NewHistoryHandler(historyService)
@@ -163,6 +173,7 @@ func SetupRouter(db *gorm.DB, cfg *config.Config, logger zerolog.Logger) *gin.En
 		liuyaoV2Service,
 		baziService,
 		horoscopeService,
+		meihuaService,
 	))
 	chatHandler := handler.NewChatHandler(chatService)
 	chatGroup := r.Group("/api/chat")

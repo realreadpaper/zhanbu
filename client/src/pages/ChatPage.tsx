@@ -24,7 +24,7 @@ interface TarotResult {
   cards?: TarotResultCard[]
 }
 
-const CHAT_TYPES = ['tarot', 'liuyao', 'liuyao_v2', 'bazi', 'horoscope'] as const
+const CHAT_TYPES = ['tarot', 'liuyao', 'liuyao_v2', 'bazi', 'horoscope', 'meihua'] as const
 
 const getInitialType = (type: string | null) => {
   return type && CHAT_TYPES.includes(type as (typeof CHAT_TYPES)[number]) ? type : 'liuyao'
@@ -41,7 +41,7 @@ export default function ChatPage() {
   const [searchParams] = useSearchParams()
   const queryType = getInitialType(searchParams.get('type'))
   const [record, setRecord] = useState<DivinationRecord | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!!id)
   const [error, setError] = useState<string | null>(null)
   const [selectedType, setSelectedType] = useState(queryType)
   const [chatActive, setChatActive] = useState(false)
@@ -80,6 +80,7 @@ export default function ChatPage() {
       liuyao_v2: '☯️',
       bazi: '📋',
       horoscope: '⭐',
+      meihua: '🌸',
     }
     return icons[type] || '🔮'
   }

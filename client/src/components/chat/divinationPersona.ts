@@ -1,4 +1,4 @@
-export type ChatDivinationType = 'tarot' | 'liuyao' | 'liuyao_v2' | 'bazi' | 'horoscope'
+export type ChatDivinationType = 'tarot' | 'liuyao' | 'liuyao_v2' | 'bazi' | 'horoscope' | 'meihua'
 
 export interface DivinationPersona {
   type: ChatDivinationType
@@ -92,11 +92,26 @@ const PERSONAS: Record<ChatDivinationType, DivinationPersona> = {
     accentClass: 'from-yellow-300 via-emerald-300 to-sky-400',
     softClass: 'border-emerald-300/30 bg-emerald-400/10 text-emerald-100',
   },
+  meihua: {
+    type: 'meihua',
+    icon: '🌸',
+    name: '观梅心易师',
+    title: '观梅心易师',
+    subtitle: '以数起卦，观本卦、互卦、变卦与体用生克',
+    welcomeTitle: '梅花易数',
+    welcomeDescription: '以邵雍一脉的时间起卦与数字起卦为核心，结合本卦、互卦、变卦与体用生克进行推演。',
+    welcomeHint: '输入你想问的事，我会以当前时间起卦。也可输入：数字 12 34，问事业机会。',
+    ritualTitle: '正在以数起卦',
+    ritualSubtitle: '梅花瓣落，卦象渐成。',
+    ritualSteps: ['取数成象', '分出上下卦', '定动爻', '推演体用生克'],
+    accentClass: 'from-pink-400 via-rose-500 to-red-400',
+    softClass: 'border-pink-400/30 bg-pink-500/10 text-pink-200',
+  },
 }
 
 export function normalizeChatType(type?: string): ChatDivinationType {
   if (type === 'liuyao') return 'liuyao_v2'
-  if (type === 'tarot' || type === 'liuyao_v2' || type === 'bazi' || type === 'horoscope') {
+  if (type === 'tarot' || type === 'liuyao_v2' || type === 'bazi' || type === 'horoscope' || type === 'meihua') {
     return type
   }
   return 'tarot'

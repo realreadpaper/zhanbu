@@ -36,6 +36,12 @@ const DEFAULT_QUESTIONS: Record<string, QuickQuestion[]> = {
     { id: 'wealth', icon: '💰', label: '财务建议', text: '请结合星座运势，给我近期消费、投资或财务安排上的建议。' },
     { id: 'energy', icon: '✨', label: '状态调整', text: '请分析我近期的能量状态，并给出适合的调整方式。' },
   ],
+  meihua: [
+    { id: 'detail', icon: '🌸', label: '卦象细解', text: '请结合本卦、互卦、变卦的卦义，详细解释这卦对我所问事情的含义。' },
+    { id: 'tiyong', icon: '☯️', label: '体用分析', text: '请重点分析体用生克关系，说明事情的助力和阻力分别在哪里。' },
+    { id: 'advice', icon: '💡', label: '行动建议', text: '基于这个卦象的体用关系，我现在应该怎么行动最有利？请给出具体建议。' },
+    { id: 'time', icon: '⏰', label: '应期判断', text: '请根据卦数和体用关系，分析这件事可能何时有明显进展或结果。' },
+  ],
   default: [
     { id: 'detail', icon: '✨', label: '继续细讲', text: '请把刚才的解读进一步展开，重点讲清楚原因和判断依据。' },
     { id: 'advice', icon: '💡', label: '下一步', text: '基于当前结果，我接下来最应该做什么？请给出具体行动建议。' },

@@ -22,6 +22,7 @@ interface DivinationSelectorProps {
 
 const DEFAULT_TYPES: DivinationType[] = [
   { id: 'liuyao', name: '六爻', icon: '☯️', description: '卦象分析' },
+  { id: 'meihua', name: '梅花易数', icon: '🌸', description: '以数起卦' },
   { id: 'bazi', name: '八字', icon: '📋', description: '命理排盘' },
   { id: 'tarot', name: '塔罗牌', icon: '🎴', description: '抽牌解读' },
   { id: 'horoscope', name: '星座', icon: '⭐', description: '运势解读' },
@@ -64,7 +65,7 @@ export default function DivinationSelector({
     )
   }
 
-  // Desktop: 2x2 grid
+  // Desktop: grid layout (2 columns)
   return (
     <div className="grid grid-cols-2 gap-2">
       {types.map((type) => (

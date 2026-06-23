@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
+	"time"
 
 	"zhanbu/internal/model"
 	apperrors "zhanbu/pkg/errors"
@@ -18,6 +20,7 @@ type ChatModeStarter struct {
 	liuyaoV2   *LiuYaoV2Service
 	bazi       *BaZiService
 	horoscope  *HoroscopeService
+	meihua     *MeiHuaService
 }
 
 // NewChatModeStarter returns a starter that delegates to existing divination services.
@@ -27,6 +30,7 @@ func NewChatModeStarter(
 	liuyaoV2 *LiuYaoV2Service,
 	bazi *BaZiService,
 	horoscope *HoroscopeService,
+	meihua *MeiHuaService,
 ) *ChatModeStarter {
 	return &ChatModeStarter{
 		recordRepo: recordRepo,
@@ -34,6 +38,7 @@ func NewChatModeStarter(
 		liuyaoV2:   liuyaoV2,
 		bazi:       bazi,
 		horoscope:  horoscope,
+		meihua:     meihua,
 	}
 }
 
@@ -48,6 +53,8 @@ func (s *ChatModeStarter) Start(userID uint, divinationType string, question str
 		return s.startBaZi(userID, question)
 	case "horoscope":
 		return s.startHoroscope(userID, question)
+	case "meihua":
+		return s.startMeiHua(userID, question)
 	default:
 		return nil, apperrors.New(apperrors.ErrBadRequest, "invalid divination type")
 	}
@@ -103,6 +110,29 @@ func (s *ChatModeStarter) startHoroscope(userID uint, question string) (*model.D
 		return nil, err
 	}
 	return s.saveResult(userID, "horoscope", question, result)
+}
+
+func (s *ChatModeStarter) startMeiHua(userID uint, question string) (*model.DivinationRecord, error) {
+	if s.meihua == nil {
+		return nil, apperrors.New(apperrors.ErrAIServiceUnavailable, "meihua service is not configured")
+	}
+
+	// Check if the question contains numbers for number-based divination
+	numbers := parseMeiHuaNumbers(question)
+	if len(numbers) >= 2 {
+		result, err := s.meihua.CalculateByNumbers(question, numbers)
+		if err != nil {
+			return nil, err
+		}
+		return s.saveResult(userID, "meihua", question, result)
+	}
+
+	// Default: time-based divination
+	result, err := s.meihua.CalculateByTime(question, time.Now(), "Asia/Shanghai")
+	if err != nil {
+		return nil, err
+	}
+	return s.saveResult(userID, "meihua", question, result)
 }
 
 func (s *ChatModeStarter) saveResult(userID uint, divinationType string, question string, result any) (*model.DivinationRecord, error) {
@@ -194,4 +224,24 @@ func parseZodiac(input string) string {
 		}
 	}
 	return ""
+}
+
+var meihuaNumberPattern = regexp.MustCompile(`数字\s*([\d\s]+)`)
+
+// parseMeiHuaNumbers extracts numbers from input like "数字 12 34，问事业".
+func parseMeiHuaNumbers(input string) []int {
+	matches := meihuaNumberPattern.FindStringSubmatch(input)
+	if len(matches) < 2 {
+		return nil
+	}
+	parts := strings.Fields(matches[1])
+	var numbers []int
+	for _, p := range parts {
+		n, err := strconv.Atoi(p)
+		if err != nil {
+			continue
+		}
+		numbers = append(numbers, n)
+	}
+	return numbers
 }

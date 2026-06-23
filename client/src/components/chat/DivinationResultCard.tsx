@@ -111,6 +111,39 @@ function buildSummary(record: DivinationRecord) {
     }
   }
 
+  if (record.type === 'meihua') {
+    const benGua = asMap(data?.ben_gua)
+    const huGua = asMap(data?.hu_gua)
+    const bianGua = asMap(data?.bian_gua)
+    const tiYong = asMap(data?.ti_yong)
+    const ti = asMap(tiYong?.ti)
+    const yong = asMap(tiYong?.yong)
+    const movingLine = data?.moving_line
+    const method = asString(data?.method)
+    const sourceValues = asMap(data?.source_values)
+
+    return {
+      title: asString(benGua?.name) || '卦象已成',
+      badge: '梅花易数',
+      items: [
+        { label: '起卦方式', value: formatMeihuaMethod(method, sourceValues) },
+        { label: '本卦', value: formatMeihuaHexagram(benGua) },
+        { label: '互卦', value: formatMeihuaHexagram(huGua) },
+        { label: '变卦', value: formatMeihuaHexagram(bianGua) },
+        {
+          label: '体用',
+          value: tiYong && ti && yong
+            ? `${asString(ti.name)}为体 · ${asString(yong.name)}为用 · ${asString(tiYong.relation)}`
+            : '待分析',
+        },
+        {
+          label: '动爻',
+          value: typeof movingLine === 'number' ? formatMovingLineName(movingLine) : '无动爻',
+        },
+      ],
+    }
+  }
+
   return {
     title: '占卜结果已生成',
     badge: '占卜',
@@ -158,4 +191,40 @@ function formatPillar(pillar: unknown) {
 
 function score(value: unknown) {
   return typeof value === 'number' ? `${value}/5` : '待分析'
+}
+
+function formatMeihuaHexagram(hex: ResultMap | null) {
+  if (!hex) return '无'
+  const name = asString(hex.name)
+  const upper = asMap(hex.upper)
+  const lower = asMap(hex.lower)
+  if (name && upper && lower) {
+    return `${name}（${asString(upper.name)}上${asString(lower.name)}下）`
+  }
+  return name || '已生成'
+}
+
+function formatMovingLineName(line: number) {
+  const names = ['', '初爻', '二爻', '三爻', '四爻', '五爻', '上爻']
+  return (line >= 1 && line <= 6 ? names[line] : `第${line}爻`) + '动'
+}
+
+function formatMeihuaMethod(method: string, sourceValues: ResultMap | null) {
+  if (method === 'number') {
+    const numbers = Array.isArray(sourceValues?.numbers)
+      ? sourceValues.numbers.join(' ')
+      : ''
+    return numbers ? `数字起卦（${numbers}）` : '数字起卦'
+  }
+  // 时间起卦：显示农历信息
+  if (sourceValues) {
+    const yearBranch = asString(sourceValues.year_branch)
+    const month = sourceValues.lunar_month
+    const day = sourceValues.lunar_day
+    const hourBranch = asString(sourceValues.hour_branch)
+    if (yearBranch && month && day && hourBranch) {
+      return `${yearBranch}年${month}月${day}日${hourBranch}时`
+    }
+  }
+  return '时间起卦'
 }

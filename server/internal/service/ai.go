@@ -73,7 +73,7 @@ func NewOpenAIProvider(cfg *config.AIConfig) (*OpenAIProvider, error) {
 
 // loadPrompts loads prompt templates from embedded files.
 func (p *OpenAIProvider) loadPrompts() error {
-	types := []string{"tarot", "horoscope", "liuyao", "liuyao_v2", "bazi"}
+	types := []string{"tarot", "horoscope", "liuyao", "liuyao_v2", "bazi", "meihua"}
 	for _, t := range types {
 		filename := fmt.Sprintf("prompts/%s_prompt.txt", t)
 		data, err := promptTemplates.ReadFile(filename)
@@ -364,6 +364,10 @@ func buildPromptData(divinationType string, result string, question string) map[
 		"BookEvidence": "无",
 		"MethodRules":  "无",
 	}
+	if divinationType == "meihua" {
+		return buildMeihuaPromptData(result, question, data)
+	}
+
 	if divinationType != "liuyao_v2" {
 		return data
 	}
@@ -397,6 +401,48 @@ func buildPromptData(divinationType string, result string, question string) map[
 			Msg("using Takashima book evidence in AI prompt")
 	}
 	return data
+}
+
+func buildMeihuaPromptData(result string, question string, data map[string]string) map[string]string {
+	var reading struct {
+		Method     string              `json:"method"`
+		BenGua     model.MeiHuaHexagram `json:"ben_gua"`
+		HuGua      model.MeiHuaHexagram `json:"hu_gua"`
+		BianGua    model.MeiHuaHexagram `json:"bian_gua"`
+		MovingLine int                 `json:"moving_line"`
+		TiYong     model.MeiHuaTiYong   `json:"ti_yong"`
+	}
+	if err := json.Unmarshal([]byte(result), &reading); err != nil {
+		return data
+	}
+
+	methodDesc := "时间起卦"
+	if reading.Method == "number" {
+		methodDesc = "数字起卦"
+	}
+
+	data["Method"] = methodDesc
+	data["BenGua"] = formatMeihuaHexagram(reading.BenGua)
+	data["HuGua"] = formatMeihuaHexagram(reading.HuGua)
+	data["BianGua"] = formatMeihuaHexagram(reading.BianGua)
+	data["MovingLine"] = formatMovingLine(reading.MovingLine)
+	data["Ti"] = fmt.Sprintf("%s（%s）", reading.TiYong.Ti.Name, reading.TiYong.Ti.Element)
+	data["Yong"] = fmt.Sprintf("%s（%s）", reading.TiYong.Yong.Name, reading.TiYong.Yong.Element)
+	data["TiYongRelation"] = reading.TiYong.Relation
+
+	return data
+}
+
+func formatMeihuaHexagram(hex model.MeiHuaHexagram) string {
+	return fmt.Sprintf("%s（%s上%s下）", hex.Name, hex.Upper.Name, hex.Lower.Name)
+}
+
+func formatMovingLine(line int) string {
+	names := []string{"", "初爻", "二爻", "三爻", "四爻", "五爻", "上爻"}
+	if line >= 1 && line <= 6 {
+		return names[line] + "动"
+	}
+	return "无动爻"
 }
 
 func formatPromptHexagram(hexagram *model.TakashimaHexagram) string {

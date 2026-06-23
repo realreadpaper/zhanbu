@@ -57,6 +57,15 @@ export default function ChatContainer({
   const [showScrollButton, setShowScrollButton] = useState(false)
   const persona = getDivinationPersona(selectedType)
   const isInitialRitual = isLoading && !session && messages.length === 0
+  const prevTypeRef = useRef(selectedType)
+
+  // Reset chat when divination type changes (not on initial mount)
+  useEffect(() => {
+    if (prevTypeRef.current !== selectedType) {
+      prevTypeRef.current = selectedType
+      reset()
+    }
+  }, [selectedType, reset])
 
   // Initialize session on mount
   useEffect(() => {
@@ -209,6 +218,7 @@ export default function ChatContainer({
               <ChatMessage
                 message={msg}
                 isStreaming={isStreaming && index === messages.length - 1 && msg.role === 'assistant'}
+                divinationType={selectedType}
               />
               {showResultAfterMessage && <DivinationResultCard record={record} />}
             </div>
