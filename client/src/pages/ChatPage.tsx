@@ -27,7 +27,7 @@ interface TarotResult {
 const CHAT_TYPES = ['tarot', 'liuyao', 'liuyao_v2', 'bazi', 'horoscope'] as const
 
 const getInitialType = (type: string | null) => {
-  return type && CHAT_TYPES.includes(type as (typeof CHAT_TYPES)[number]) ? type : 'tarot'
+  return type && CHAT_TYPES.includes(type as (typeof CHAT_TYPES)[number]) ? type : 'liuyao'
 }
 
 /**
