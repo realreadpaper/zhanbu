@@ -172,6 +172,7 @@ func SetupRouter(db *gorm.DB, cfg *config.Config, logger zerolog.Logger) *gin.En
 		chatGroup.GET("/sessions", chatHandler.ListSessions)
 		chatGroup.GET("/sessions/:id", chatHandler.GetSession)
 		chatGroup.DELETE("/sessions/:id", chatHandler.DeleteSession)
+		chatGroup.POST("/sessions/:id/initial-reading", chatHandler.StreamInitialReading)
 		chatGroup.POST("/sessions/:id/messages", chatHandler.SendMessage)
 	}
 

@@ -6,6 +6,7 @@ import ChatInput from './ChatInput'
 import QuickQuestions from './QuickQuestions'
 import { getQuickQuestions } from './quickQuestionData'
 import DivinationRitual from './DivinationRitual'
+import DivinationResultCard from './DivinationResultCard'
 import { getDivinationPersona } from './divinationPersona'
 
 interface ChatContainerProps {
@@ -40,6 +41,7 @@ export default function ChatContainer({
   const selectedType = divinationType
   const {
     session,
+    record,
     messages,
     isStreaming,
     isLoading,
@@ -199,13 +201,19 @@ export default function ChatContainer({
         )}
 
         {/* Messages */}
-        {messages.map((msg, index) => (
-          <ChatMessage
-            key={msg.id || index}
-            message={msg}
-            isStreaming={isStreaming && index === messages.length - 1 && msg.role === 'assistant'}
-          />
-        ))}
+        {messages.map((msg, index) => {
+          const showResultAfterMessage = record && index === 0 && msg.role === 'user'
+
+          return (
+            <div key={msg.id || index} className="space-y-4">
+              <ChatMessage
+                message={msg}
+                isStreaming={isStreaming && index === messages.length - 1 && msg.role === 'assistant'}
+              />
+              {showResultAfterMessage && <DivinationResultCard record={record} />}
+            </div>
+          )
+        })}
 
         {/* Error display */}
         {error && (

@@ -199,22 +199,57 @@ func (h *ChatHandler) SendMessage(c *gin.Context) {
 		return
 	}
 
-	// Set SSE headers
+	streamSSE(c, ch)
+}
+
+// StreamInitialReading handles POST /api/chat/sessions/:id/initial-reading.
+func (h *ChatHandler) StreamInitialReading(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == 0 {
+		response.Error(c, http.StatusUnauthorized, apperrors.ErrUnauthorized, "unauthorized")
+		return
+	}
+
+	sessionID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, apperrors.ErrBadRequest, "invalid session id")
+		return
+	}
+
+	ch, err := h.service.StreamInitialReading(userID, uint(sessionID))
+	if err != nil {
+		if appErr, ok := err.(*apperrors.AppError); ok {
+			httpStatus := http.StatusInternalServerError
+			if appErr.Code == apperrors.ErrNotFound {
+				httpStatus = http.StatusNotFound
+			} else if appErr.Code == apperrors.ErrAIServiceUnavailable {
+				httpStatus = http.StatusServiceUnavailable
+			} else if appErr.Code == apperrors.ErrBadRequest {
+				httpStatus = http.StatusBadRequest
+			}
+			response.ErrorWithAppError(c, httpStatus, appErr)
+			return
+		}
+		response.Error(c, http.StatusInternalServerError, apperrors.ErrInternalServer, "failed to stream initial reading")
+		return
+	}
+
+	streamSSE(c, ch)
+}
+
+func streamSSE(c *gin.Context, ch <-chan string) {
 	c.Header("Content-Type", "text/event-stream")
 	c.Header("Cache-Control", "no-cache")
 	c.Header("Connection", "keep-alive")
 	c.Header("X-Accel-Buffering", "no")
 
-	// Stream chunks as SSE
 	c.Stream(func(w io.Writer) bool {
 		chunk, ok := <-ch
 		if !ok {
-			// Stream ended
 			fmt.Fprintf(w, "data: [DONE]\n\n")
 			return false
 		}
 
-		// Send chunk as SSE
 		data, _ := json.Marshal(map[string]string{"text": chunk})
 		fmt.Fprintf(w, "data: %s\n\n", data)
 		return true

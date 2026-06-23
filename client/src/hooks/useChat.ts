@@ -1,10 +1,12 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import type { ChatSession, ChatMessage } from '../services/chat'
+import type { ChatSession, ChatMessage, DivinationRecord } from '../services/chat'
 import {
   createSession,
   getSession,
   sendMessageStream,
+  streamInitialReading,
 } from '../services/chat'
+import { fetchHistoryDetail } from '../services/history'
 
 export interface UseChatOptions {
   /** The divination record ID to create a session for */
@@ -16,6 +18,8 @@ export interface UseChatOptions {
 export interface UseChatReturn {
   /** Current chat session */
   session: ChatSession | null
+  /** Divination record for the current chat session */
+  record: DivinationRecord | null
   /** Messages in the session */
   messages: ChatMessage[]
   /** Whether AI is currently streaming a response */
@@ -41,6 +45,7 @@ export interface UseChatReturn {
  */
 export function useChat({ sessionId }: UseChatOptions = {}): UseChatReturn {
   const [session, setSession] = useState<ChatSession | null>(null)
+  const [record, setRecord] = useState<DivinationRecord | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -99,6 +104,49 @@ export function useChat({ sessionId }: UseChatOptions = {}): UseChatReturn {
     )
   }, [])
 
+  const streamInitialReadingForSession = useCallback((sessionId: number) => {
+    setIsStreaming(true)
+    streamContentRef.current = ''
+
+    const aiMsgId = Date.now() + 1
+    setMessages(prev => [...prev, {
+      id: aiMsgId,
+      role: 'assistant',
+      content: '',
+      created_at: new Date().toISOString(),
+    }])
+
+    cleanupRef.current = streamInitialReading(
+      sessionId,
+      (chunk: string) => {
+        streamContentRef.current += chunk
+        setMessages(prev => {
+          const last = prev[prev.length - 1]
+          if (last && last.role === 'assistant') {
+            return [...prev.slice(0, -1), { ...last, content: streamContentRef.current }]
+          }
+          return prev
+        })
+      },
+      () => {
+        setIsStreaming(false)
+        cleanupRef.current = null
+      },
+      (err: Error) => {
+        setIsStreaming(false)
+        setError(err.message || 'AI解读失败')
+        cleanupRef.current = null
+        setMessages(prev => {
+          const last = prev[prev.length - 1]
+          if (last && last.role === 'assistant' && !last.content) {
+            return [...prev.slice(0, -1), { ...last, content: '抱歉，AI解读出现错误，请重试。' }]
+          }
+          return prev
+        })
+      }
+    )
+  }, [])
+
   // Initialize session from record
   const initSession = useCallback(async (recordId: number, firstMessage?: string) => {
     setIsLoading(true)
@@ -108,6 +156,8 @@ export function useChat({ sessionId }: UseChatOptions = {}): UseChatReturn {
       const nextSession = await createSession({ record_id: recordId })
       setSession(nextSession)
       setMessages(nextSession.messages || [])
+      const nextRecord = await fetchHistoryDetail(nextSession.record_id)
+      setRecord(nextRecord)
 
       if (firstMessage) {
         const userMsg: ChatMessage = {
@@ -138,13 +188,15 @@ export function useChat({ sessionId }: UseChatOptions = {}): UseChatReturn {
       const nextSession = await createSession({ type, question: question.trim() })
       setSession(nextSession)
       setMessages(nextSession.messages || [])
+      const nextRecord = await fetchHistoryDetail(nextSession.record_id)
+      setRecord(nextRecord)
+      streamInitialReadingForSession(nextSession.id)
     } catch (err) {
       setError((err as Error).message || '创建会话失败')
     } finally {
       setIsLoading(false)
-      setIsStreaming(false)
     }
-  }, [isStreaming])
+  }, [isStreaming, streamInitialReadingForSession])
 
   // Load existing session
   const loadSession = useCallback(async (sessionId: number) => {
@@ -155,6 +207,8 @@ export function useChat({ sessionId }: UseChatOptions = {}): UseChatReturn {
       const nextSession = await getSession(sessionId)
       setSession(nextSession)
       setMessages(nextSession.messages || [])
+      const nextRecord = await fetchHistoryDetail(nextSession.record_id)
+      setRecord(nextRecord)
     } catch (err) {
       setError((err as Error).message || '加载会话失败')
     } finally {
@@ -186,6 +240,7 @@ export function useChat({ sessionId }: UseChatOptions = {}): UseChatReturn {
       cleanupRef.current = null
     }
     setSession(null)
+    setRecord(null)
     setMessages([])
     setIsStreaming(false)
     setIsLoading(false)
@@ -214,6 +269,7 @@ export function useChat({ sessionId }: UseChatOptions = {}): UseChatReturn {
 
   return {
     session,
+    record,
     messages,
     isStreaming,
     isLoading,

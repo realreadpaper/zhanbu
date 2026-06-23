@@ -26,6 +26,16 @@ export interface SendMessageRequest {
   content: string
 }
 
+export interface DivinationRecord {
+  id: number
+  user_id: number
+  type: string
+  question: string
+  result: string
+  ai_reading: string
+  created_at: string
+}
+
 /**
  * Create a new chat session for a divination record.
  */
@@ -118,18 +128,49 @@ export function sendMessageStream(
   onDone: () => void,
   onError: (error: Error) => void
 ): () => void {
+  return streamChatEndpoint(
+    `/chat/sessions/${sessionId}/messages`,
+    { content },
+    onChunk,
+    onDone,
+    onError
+  )
+}
+
+export function streamInitialReading(
+  sessionId: number,
+  onChunk: (text: string) => void,
+  onDone: () => void,
+  onError: (error: Error) => void
+): () => void {
+  return streamChatEndpoint(
+    `/chat/sessions/${sessionId}/initial-reading`,
+    undefined,
+    onChunk,
+    onDone,
+    onError
+  )
+}
+
+function streamChatEndpoint(
+  path: string,
+  body: unknown,
+  onChunk: (text: string) => void,
+  onDone: () => void,
+  onError: (error: Error) => void
+): () => void {
   const token = localStorage.getItem('access_token')
   const controller = new AbortController()
 
   const fetchData = async () => {
     try {
-      const response = await fetch(apiURL(`/chat/sessions/${sessionId}/messages`), {
+      const response = await fetch(apiURL(path), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ content }),
+        body: body === undefined ? undefined : JSON.stringify(body),
         signal: controller.signal,
       })
 
@@ -164,7 +205,6 @@ export function sendMessageStream(
 
         buffer += decoder.decode(value, { stream: true })
 
-        // Process complete SSE messages
         const lines = buffer.split('\n')
         buffer = lines.pop() || ''
 

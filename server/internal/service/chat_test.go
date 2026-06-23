@@ -123,7 +123,7 @@ func (s *fakeChatStarter) Start(userID uint, divinationType string, question str
 	return s.record, nil
 }
 
-func TestChatServiceCreateModeSessionSavesInitialAIReading(t *testing.T) {
+func TestChatServiceCreateModeSessionCreatesRecordAndUserMessage(t *testing.T) {
 	chatRepo := newMockChatRepo()
 	recordRepo := newMockDivinationRepo()
 	recordRepo.records = append(recordRepo.records, model.DivinationRecord{
@@ -145,11 +145,10 @@ func TestChatServiceCreateModeSessionSavesInitialAIReading(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, session)
 	assert.Equal(t, uint(42), session.RecordID)
-	require.Len(t, session.Messages, 2)
+	require.Len(t, session.Messages, 1)
 	assert.Equal(t, "user", session.Messages[0].Role)
-	assert.Equal(t, "assistant", session.Messages[1].Role)
-	assert.Equal(t, "这是一段聊天模式AI解读", session.Messages[1].Content)
-	assert.Equal(t, "这是一段聊天模式AI解读", recordRepo.records[0].AIReading)
+	assert.Equal(t, "我今天适合做决定吗", session.Messages[0].Content)
+	assert.Empty(t, recordRepo.records[0].AIReading)
 }
 
 type controllableChatProvider struct {
@@ -162,6 +161,79 @@ func (p *controllableChatProvider) Interpret(divinationType string, result strin
 
 func (p *controllableChatProvider) ChatCompletion(messages []map[string]string) (<-chan string, error) {
 	return p.ch, nil
+}
+
+type failingChatProvider struct{}
+
+func (p *failingChatProvider) Interpret(divinationType string, result string, question string) (<-chan string, error) {
+	return nil, nil
+}
+
+func (p *failingChatProvider) ChatCompletion(messages []map[string]string) (<-chan string, error) {
+	return nil, errors.New("chat completion should not be called")
+}
+
+func TestChatServiceCreateModeSessionDoesNotWaitForAIReading(t *testing.T) {
+	chatRepo := newMockChatRepo()
+	recordRepo := newMockDivinationRepo()
+	recordRepo.records = append(recordRepo.records, model.DivinationRecord{
+		ID:       42,
+		UserID:   7,
+		Type:     "liuyao_v2",
+		Question: "今天晚上是否可以出门",
+		Result:   `{"mode":"test"}`,
+	})
+	starter := &fakeChatStarter{}
+	svc := NewChatService(chatRepo, recordRepo, &failingChatProvider{})
+	svc.SetDivinationStarter(starter)
+
+	session, err := svc.CreateModeSession(7, ChatStartOptions{
+		Type:     "liuyao_v2",
+		Question: "今天晚上是否可以出门",
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, session)
+	require.Len(t, session.Messages, 1)
+	assert.Equal(t, "user", session.Messages[0].Role)
+	assert.Empty(t, recordRepo.records[0].AIReading)
+}
+
+func TestChatServiceStreamInitialReadingSavesAIReading(t *testing.T) {
+	chatRepo := newMockChatRepo()
+	recordRepo := newMockDivinationRepo()
+	recordRepo.records = append(recordRepo.records, model.DivinationRecord{
+		ID:       42,
+		UserID:   7,
+		Type:     "tarot",
+		Question: "我今天适合做决定吗",
+		Result:   `{"mode":"test"}`,
+	})
+	require.NoError(t, chatRepo.CreateSession(&model.ChatSession{
+		UserID:   7,
+		RecordID: 42,
+		Title:    "我今天适合做决定吗",
+	}))
+	require.NoError(t, chatRepo.CreateMessage(&model.ChatMessage{
+		SessionID: 1,
+		Role:      "user",
+		Content:   "我今天适合做决定吗",
+	}))
+	svc := NewChatService(chatRepo, recordRepo, &MockAIProvider{Response: "这是一段聊天模式AI解读"})
+
+	stream, err := svc.StreamInitialReading(7, 1)
+	require.NoError(t, err)
+
+	var got string
+	for chunk := range stream {
+		got += chunk
+	}
+
+	assert.Equal(t, "这是一段聊天模式AI解读", got)
+	require.Len(t, chatRepo.messages[1], 2)
+	assert.Equal(t, "assistant", chatRepo.messages[1][1].Role)
+	assert.Equal(t, "这是一段聊天模式AI解读", chatRepo.messages[1][1].Content)
+	assert.Equal(t, "这是一段聊天模式AI解读", recordRepo.records[0].AIReading)
 }
 
 func TestChatServiceSendMessageBroadcastsFullStreamAndSavesFullResponse(t *testing.T) {

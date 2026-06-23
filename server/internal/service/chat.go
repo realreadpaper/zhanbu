@@ -54,11 +54,11 @@ type ChatDivinationStarter interface {
 
 // ChatService handles chat business logic.
 type ChatService struct {
-	chatRepo       ChatRepository
-	recordReader   DivinationRecordReader
-	aiProvider     AIProvider
-	starter        ChatDivinationStarter
-	promptTmpl     string
+	chatRepo         ChatRepository
+	recordReader     DivinationRecordReader
+	aiProvider       AIProvider
+	starter          ChatDivinationStarter
+	promptTmpl       string
 	liuyaoPromptTmpl string
 }
 
@@ -213,13 +213,6 @@ func (s *ChatService) CreateModeSession(userID uint, opts ChatStartOptions) (*mo
 		return nil, fmt.Errorf("failed to save user message: %w", err)
 	}
 
-	history := []model.ChatMessage{*userMsg}
-	messages := s.buildMessages(record, history)
-	ch, err := s.aiProvider.ChatCompletion(messages)
-	if err != nil {
-		return nil, err
-	}
-	s.collectAndSaveResponse(ch, session.ID, record.ID, true)
 	go s.chatRepo.UpdateSessionTimestamp(session.ID)
 
 	return s.chatRepo.FindSessionByID(session.ID)
@@ -309,6 +302,43 @@ func (s *ChatService) SendMessage(userID uint, sessionID uint, content string) (
 	clientCh := s.streamAndSaveResponse(ch, sessionID, session.RecordID, false)
 
 	// Update session timestamp
+	go s.chatRepo.UpdateSessionTimestamp(sessionID)
+
+	return clientCh, nil
+}
+
+// StreamInitialReading streams the first AI interpretation for a newly created
+// chat-mode session without saving a duplicate user message.
+func (s *ChatService) StreamInitialReading(userID uint, sessionID uint) (<-chan string, error) {
+	if s.aiProvider == nil {
+		return nil, apperrors.New(apperrors.ErrAIServiceUnavailable,
+			"AI service is not configured. Set ZHANBU_AI_API_KEY to enable chat.")
+	}
+
+	session, err := s.chatRepo.FindSessionByUserAndID(userID, sessionID)
+	if err != nil {
+		return nil, apperrors.New(apperrors.ErrNotFound, "chat session not found")
+	}
+
+	record, err := s.recordReader.FindByUserIDAndID(userID, session.RecordID)
+	if err != nil {
+		return nil, apperrors.New(apperrors.ErrNotFound, "divination record not found")
+	}
+
+	history, err := s.chatRepo.GetRecentMessages(sessionID, MaxHistoryMessages)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load conversation history: %w", err)
+	}
+	if len(history) == 0 {
+		return nil, apperrors.New(apperrors.ErrBadRequest, "initial question is required")
+	}
+
+	ch, err := s.aiProvider.ChatCompletion(s.buildMessages(record, history))
+	if err != nil {
+		return nil, err
+	}
+
+	clientCh := s.streamAndSaveResponse(ch, sessionID, session.RecordID, true)
 	go s.chatRepo.UpdateSessionTimestamp(sessionID)
 
 	return clientCh, nil
