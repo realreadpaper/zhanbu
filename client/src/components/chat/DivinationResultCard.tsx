@@ -218,6 +218,9 @@ function formatMeihuaMethod(method: string, sourceValues: ResultMap | null) {
   }
   // 时间起卦：显示农历信息
   if (sourceValues) {
+    const lunarDisplay = asString(sourceValues.lunar_display)
+    if (lunarDisplay) return lunarDisplay
+
     const yearBranch = asString(sourceValues.year_branch)
     const month = sourceValues.lunar_month
     const day = sourceValues.lunar_day

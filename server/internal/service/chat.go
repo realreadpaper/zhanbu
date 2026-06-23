@@ -445,11 +445,11 @@ func (s *ChatService) buildMeihuaPrompt(record *model.DivinationRecord) string {
 	prompt := s.meihuaPromptTmpl
 
 	var reading struct {
-		Method     string              `json:"method"`
+		Method     string               `json:"method"`
 		BenGua     model.MeiHuaHexagram `json:"ben_gua"`
 		HuGua      model.MeiHuaHexagram `json:"hu_gua"`
 		BianGua    model.MeiHuaHexagram `json:"bian_gua"`
-		MovingLine int                 `json:"moving_line"`
+		MovingLine int                  `json:"moving_line"`
 		TiYong     model.MeiHuaTiYong   `json:"ti_yong"`
 	}
 	if err := json.Unmarshal([]byte(record.Result), &reading); err != nil {
@@ -493,14 +493,18 @@ func formatMeihuaMethodDesc(method string, resultJSON string) string {
 	// 时间起卦：提取农历信息
 	var r struct {
 		SourceValues struct {
-			YearBranch string `json:"year_branch"`
-			LunarMonth int    `json:"lunar_month"`
-			LunarDay   int    `json:"lunar_day"`
-			HourBranch string `json:"hour_branch"`
+			YearBranch   string `json:"year_branch"`
+			LunarMonth   int    `json:"lunar_month"`
+			LunarDay     int    `json:"lunar_day"`
+			LunarDisplay string `json:"lunar_display"`
+			HourBranch   string `json:"hour_branch"`
 		} `json:"source_values"`
 	}
 	if json.Unmarshal([]byte(resultJSON), &r) == nil {
 		sv := r.SourceValues
+		if sv.LunarDisplay != "" {
+			return fmt.Sprintf("时间起卦（%s）", sv.LunarDisplay)
+		}
 		if sv.YearBranch != "" && sv.LunarMonth > 0 && sv.LunarDay > 0 && sv.HourBranch != "" {
 			return fmt.Sprintf("时间起卦（%s年%d月%d日%s时）", sv.YearBranch, sv.LunarMonth, sv.LunarDay, sv.HourBranch)
 		}

@@ -42,8 +42,8 @@ func TestMeihuaClassicCase(t *testing.T) {
 	svc := NewMeiHuaService()
 
 	// 手动测试 buildResult
-	upperNum := TrigramDui  // 兑
-	lowerNum := TrigramLi   // 离
+	upperNum := TrigramDui // 兑
+	lowerNum := TrigramLi  // 离
 	movingLine := 1
 
 	result, err := svc.buildResult("观梅", mockSourceValues(), upperNum, lowerNum, movingLine, time.Now().Format(time.RFC3339))
@@ -75,6 +75,27 @@ func TestMeihuaClassicCase(t *testing.T) {
 	}
 	if result.TiYong.Relation != "用克体" {
 		t.Errorf("ti-yong relation: want 用克体, got %s", result.TiYong.Relation)
+	}
+}
+
+func TestMeihuaTimeResultIncludesChineseLunarDisplay(t *testing.T) {
+	svc := NewMeiHuaService()
+	loc, err := time.LoadLocation("Asia/Shanghai")
+	if err != nil {
+		t.Fatalf("load location: %v", err)
+	}
+
+	result, err := svc.CalculateByTime("测试农历展示", time.Date(2026, 6, 23, 23, 30, 0, 0, loc), "Asia/Shanghai")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if result.SourceValues.LunarDisplay != "丙午年五月初九子时" {
+		t.Fatalf("lunar display: want 丙午年五月初九子时, got %s", result.SourceValues.LunarDisplay)
+	}
+	if result.SourceValues.LunarMonth != 5 || result.SourceValues.LunarDay != 9 {
+		t.Fatalf("lunar calculation changed: want month=5 day=9, got month=%d day=%d",
+			result.SourceValues.LunarMonth, result.SourceValues.LunarDay)
 	}
 }
 

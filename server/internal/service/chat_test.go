@@ -236,6 +236,14 @@ func TestChatServiceStreamInitialReadingSavesAIReading(t *testing.T) {
 	assert.Equal(t, "这是一段聊天模式AI解读", recordRepo.records[0].AIReading)
 }
 
+func TestFormatMeihuaMethodDescPrefersChineseLunarDisplay(t *testing.T) {
+	resultJSON := `{"source_values":{"year_branch":"午","lunar_month":5,"lunar_day":9,"lunar_display":"丙午年五月初九子时","hour_branch":"子"}}`
+
+	got := formatMeihuaMethodDesc("time", resultJSON)
+
+	assert.Equal(t, "时间起卦（丙午年五月初九子时）", got)
+}
+
 func TestChatServiceSendMessageBroadcastsFullStreamAndSavesFullResponse(t *testing.T) {
 	chatRepo := newMockChatRepo()
 	recordRepo := newMockDivinationRepo()

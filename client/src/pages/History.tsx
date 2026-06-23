@@ -21,6 +21,7 @@ const typeFilters = [
   { value: 'bazi', label: '八字' },
   { value: 'tarot', label: '塔罗牌' },
   { value: 'horoscope', label: '星座' },
+  { value: 'meihua', label: '梅花易数' },
 ]
 
 function parseResult(result: string): unknown {
@@ -45,6 +46,21 @@ function getNestedString(value: unknown, path: string[]): string {
     current = record[key]
   }
   return typeof current === 'string' ? current : ''
+}
+
+function getNestedNumber(value: unknown, path: string[]): number | null {
+  let current: unknown = value
+  for (const key of path) {
+    const record = valueAsRecord(current)
+    if (!record) return null
+    current = record[key]
+  }
+  return typeof current === 'number' ? current : null
+}
+
+function formatMovingLineName(line: number): string {
+  const names = ['', '初爻', '二爻', '三爻', '四爻', '五爻', '上爻']
+  return (line >= 1 && line <= 6 ? names[line] : `第${line}爻`) + '动'
 }
 
 function getResultTitle(record: DivinationRecord): string {
@@ -78,6 +94,25 @@ function getResultSummary(record: DivinationRecord): string {
   const summary = getNestedString(result, ['summary'])
   if (summary) return summary
 
+  if (record.type === 'meihua') {
+    const lunarDisplay = getNestedString(result, ['source_values', 'lunar_display'])
+    const benGua = getNestedString(result, ['ben_gua', 'name'])
+    const huGua = getNestedString(result, ['hu_gua', 'name'])
+    const bianGua = getNestedString(result, ['bian_gua', 'name'])
+    const movingLine = getNestedNumber(result, ['moving_line'])
+    const ti = getNestedString(result, ['ti_yong', 'ti', 'name'])
+    const yong = getNestedString(result, ['ti_yong', 'yong', 'name'])
+    const relation = getNestedString(result, ['ti_yong', 'relation'])
+    return [
+      lunarDisplay ? `起卦时间：${lunarDisplay}` : '',
+      benGua ? `本卦：${benGua}` : '',
+      huGua ? `互卦：${huGua}` : '',
+      bianGua ? `变卦：${bianGua}` : '',
+      movingLine ? `动爻：${formatMovingLineName(movingLine)}` : '',
+      ti && yong ? `体用：${ti}为体，${yong}为用${relation ? `，${relation}` : ''}` : '',
+    ].filter(Boolean).join('\n')
+  }
+
   const judgment = getNestedString(result, ['ben_gua', 'judgment', 'text']) || getNestedString(result, ['ben_gua', 'judgment'])
   if (judgment) return judgment
 
@@ -87,10 +122,14 @@ function getResultSummary(record: DivinationRecord): string {
 
 function useIsMobile(breakpoint = 640) {
   const getInitialValue = () =>
-    typeof window !== 'undefined' && window.matchMedia(`(max-width: ${breakpoint - 1}px)`).matches
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia(`(max-width: ${breakpoint - 1}px)`).matches
   const [isMobile, setIsMobile] = useState(getInitialValue)
 
   useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return
+
     const mq = window.matchMedia(`(max-width: ${breakpoint - 1}px)`)
     const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches)
     mq.addEventListener('change', handler)
@@ -236,6 +275,7 @@ export default function History() {
     liuyao_v2: '☯',
     bazi: '📜',
     horoscope: '✨',
+    meihua: '🌸',
   }
 
   return (

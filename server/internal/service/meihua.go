@@ -11,14 +11,14 @@ import (
 // ── 先天八卦常量 ──────────────────────────────────────────────────
 
 const (
-	TrigramQian  = 1 // 乾
-	TrigramDui   = 2 // 兑
-	TrigramLi    = 3 // 离
-	TrigramZhen  = 4 // 震
-	TrigramXun   = 5 // 巽
-	TrigramKan   = 6 // 坎
-	TrigramGen   = 7 // 艮
-	TrigramKun   = 8 // 坤
+	TrigramQian = 1 // 乾
+	TrigramDui  = 2 // 兑
+	TrigramLi   = 3 // 离
+	TrigramZhen = 4 // 震
+	TrigramXun  = 5 // 巽
+	TrigramKan  = 6 // 坎
+	TrigramGen  = 7 // 艮
+	TrigramKun  = 8 // 坤
 )
 
 // TrigramCount 八卦总数，取模基数。
@@ -53,17 +53,17 @@ const (
 // ── 五行体用关系 ──────────────────────────────────────────────────
 
 const (
-	RelationBiHe    = "比和"
-	YongShengTi     = "用生体"
-	TiShengYong     = "体生用"
-	YongKeTi        = "用克体"
-	TiKeYong        = "体克用"
+	RelationBiHe = "比和"
+	YongShengTi  = "用生体"
+	TiShengYong  = "体生用"
+	YongKeTi     = "用克体"
+	TiKeYong     = "体克用"
 )
 
 // ── 爻值 ──────────────────────────────────────────────────────────
 
 const (
-	LineYin = 0 // 阴爻
+	LineYin  = 0 // 阴爻
 	LineYang = 1 // 阳爻
 )
 
@@ -167,13 +167,14 @@ func (s *MeiHuaService) CalculateByTime(question string, t time.Time, timezone s
 	}
 
 	sourceValues := model.MeiHuaSourceValues{
-		Method:     MethodTime,
-		YearBranch: yearBranch,
-		YearNumber: yearNumber,
-		LunarMonth: absMonth,
-		LunarDay:   lunarDay,
-		HourBranch: hourBranch,
-		HourNumber: hourNumber,
+		Method:       MethodTime,
+		YearBranch:   yearBranch,
+		YearNumber:   yearNumber,
+		LunarMonth:   absMonth,
+		LunarDay:     lunarDay,
+		LunarDisplay: formatMeiHuaLunarDisplay(yearGanZhi, lunarDate.GetMonthInChinese(), lunarDate.GetDayInChinese(), hourBranch),
+		HourBranch:   hourBranch,
+		HourNumber:   hourNumber,
 	}
 
 	// 上卦：(年 + 月 + 日) % 8
@@ -197,6 +198,13 @@ func (s *MeiHuaService) CalculateByTime(question string, t time.Time, timezone s
 	}
 
 	return s.buildResult(question, sourceValues, upperRemainder, lowerRemainder, movingLineRemainder, t.Format(time.RFC3339))
+}
+
+func formatMeiHuaLunarDisplay(yearGanZhi, monthChinese, dayChinese, hourBranch string) string {
+	if yearGanZhi == "" || monthChinese == "" || dayChinese == "" || hourBranch == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s年%s月%s%s时", yearGanZhi, monthChinese, dayChinese, hourBranch)
 }
 
 // MinNumbersRequired 数字起卦最少需要的数字个数。
