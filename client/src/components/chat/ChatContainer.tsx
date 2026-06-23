@@ -5,6 +5,8 @@ import ChatMessage from './ChatMessage'
 import ChatInput from './ChatInput'
 import QuickQuestions from './QuickQuestions'
 import { getQuickQuestions } from './quickQuestionData'
+import DivinationRitual from './DivinationRitual'
+import { getDivinationPersona } from './divinationPersona'
 
 interface ChatContainerProps {
   /** The divination record ID */
@@ -51,6 +53,8 @@ export default function ChatContainer({
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const chatAreaRef = useRef<HTMLDivElement>(null)
   const [showScrollButton, setShowScrollButton] = useState(false)
+  const persona = getDivinationPersona(selectedType)
+  const isInitialRitual = isLoading && !session && messages.length === 0
 
   // Initialize session on mount
   useEffect(() => {
@@ -99,46 +103,14 @@ export default function ChatContainer({
     startModeSession(selectedType, content)
   }
 
-  // Get welcome content based on divination type
-  const getWelcomeContent = () => {
-    const contents: Record<string, { icon: string; title: string; desc: string; hint: string }> = {
-      tarot: {
-        icon: '🎴',
-        title: '塔罗牌占卜',
-        desc: '通过塔罗牌的象征图案，洞察您内心的答案。\n支持单牌、三牌、凯尔特十字等多种牌阵。',
-        hint: '💡 请输入您的问题，我将为您抽牌解读',
-      },
-      liuyao: {
-        icon: '☯️',
-        title: '六爻占卜',
-        desc: '基于《高岛易断》的深度卦象解读系统。\n支持蓍草法和铜钱法起卦。',
-        hint: '💡 请输入您想问的事情，我将为您起卦',
-      },
-      bazi: {
-        icon: '📋',
-        title: '八字排盘',
-        desc: '根据出生时间排盘，分析命理五行。\n涵盖十神、用神忌神等深度分析。',
-        hint: '💡 请告诉我您的出生年月日时',
-      },
-      horoscope: {
-        icon: '⭐',
-        title: '星座运势',
-        desc: '每日/每周/每月星座运势解读。\n涵盖爱情、事业、财运、健康。',
-        hint: '💡 请告诉我您的星座',
-      },
-    }
-    return contents[selectedType] || contents.tarot
-  }
-
   // Get placeholder based on state
   const getPlaceholder = () => {
-    if (isStreaming) return 'AI正在回复中...'
-    if (!session && selectedType === 'bazi') return '输入出生年月日时...'
+    if (isStreaming) return `${persona.name}正在解读...`
+    if (!session && selectedType === 'bazi') return '输入出生年月日时，例如：1990-05-12 08:30 女...'
+    if (!session && selectedType === 'horoscope') return '输入星座和问题，例如：天蝎座今天事业运如何...'
     if (!session) return '输入您想问的问题...'
     return '继续提问...'
   }
-
-  const welcome = getWelcomeContent()
 
   return (
     <div className="flex flex-col h-full bg-slate-900/50 relative">
@@ -146,10 +118,11 @@ export default function ChatContainer({
       <div className="px-4 sm:px-6 py-3 border-b border-slate-700/50 flex items-center justify-between">
         <div>
           <div className="text-sm font-semibold text-slate-200 flex items-center gap-2">
-            🔮 AI 占卜师
+            <span>{persona.icon}</span>
+            <span>{persona.name}</span>
           </div>
           <div className="text-xs text-slate-500">
-            {session ? '基于您的占卜结果进行深度解读' : '选择占卜方式开始'}
+            {session ? persona.subtitle : '选择占卜方式开始'}
           </div>
         </div>
         <div className="flex gap-2">
@@ -198,22 +171,30 @@ export default function ChatContainer({
             className="flex flex-col items-center justify-center py-8"
           >
             <div className="bg-gradient-to-br from-violet-500/10 to-indigo-500/5 border border-violet-500/20 rounded-2xl p-6 sm:p-8 max-w-md text-center">
-              <div className="text-5xl mb-4">{welcome.icon}</div>
-              <h3 className="text-lg font-semibold text-slate-200 mb-2">{welcome.title}</h3>
+              <div className="text-5xl mb-4">{persona.icon}</div>
+              <h3 className="text-lg font-semibold text-slate-200 mb-1">{persona.welcomeTitle}</h3>
+              <div className="text-sm text-violet-200 mb-3">{persona.title}</div>
               <p className="text-sm text-slate-400 leading-relaxed whitespace-pre-line mb-4">
-                {welcome.desc}
+                {persona.welcomeDescription}
               </p>
               <div className="bg-violet-500/10 rounded-xl px-4 py-3 text-xs text-indigo-300">
-                {welcome.hint}
+                {persona.welcomeHint}
               </div>
             </div>
           </motion.div>
         )}
 
-        {/* Loading state */}
-        {isLoading && (
+        <AnimatePresence>
+          {isInitialRitual && (
+            <div className="py-8">
+              <DivinationRitual persona={persona} />
+            </div>
+          )}
+        </AnimatePresence>
+
+        {isLoading && !isInitialRitual && (
           <div className="flex justify-center py-8">
-            <div className="w-8 h-8 border-2 border-violet-500/30 border-t-violet-500 rounded-full animate-spin" />
+            <div className={`h-8 w-8 rounded-full border-2 border-slate-700 border-t-violet-400 animate-spin`} />
           </div>
         )}
 

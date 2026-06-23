@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import ChatContainer from '../components/chat/ChatContainer'
 import DivinationSelector from '../components/chat/DivinationSelector'
+import { getDivinationPersona } from '../components/chat/divinationPersona'
 import { fetchHistoryDetail } from '../services/history'
 
 interface DivinationRecord {
@@ -70,18 +71,6 @@ export default function ChatPage() {
 
     loadRecord()
   }, [id])
-
-  // Get divination type name
-  const getTypeName = (type: string) => {
-    const names: Record<string, string> = {
-      tarot: '塔罗牌',
-      liuyao: '六爻',
-      liuyao_v2: '六爻',
-      bazi: '八字',
-      horoscope: '星座',
-    }
-    return names[type] || type
-  }
 
   // Get divination type icon
   const getTypeIcon = (type: string) => {
@@ -157,6 +146,7 @@ export default function ChatPage() {
 
   const cardInfo = getCardInfo()
   const activeType = record?.type || selectedType || queryType
+  const persona = getDivinationPersona(activeType)
 
   return (
     <div className="h-screen flex flex-col lg:flex-row bg-slate-900">
@@ -194,10 +184,10 @@ export default function ChatPage() {
               </div>
               <div>
                 <div className="text-sm font-semibold text-slate-200">
-                  {getTypeName(activeType)}
+                  {persona.name}
                 </div>
                 <div className="text-xs text-slate-500">
-                  {record ? formatDate(record.created_at) : '选择方式，输入问题后开始'}
+                  {record ? formatDate(record.created_at) : persona.subtitle}
                 </div>
               </div>
             </div>
@@ -253,10 +243,10 @@ export default function ChatPage() {
           </button>
           <div className="text-center flex-1">
             <div className="text-sm font-semibold text-slate-200">
-              🔮 {getTypeName(activeType)}解读
+              {persona.icon} {persona.name}
             </div>
             <div className="text-xs text-slate-500">
-              {record?.question ? record.question.slice(0, 20) + '...' : '选择占卜方式开始'}
+              {record?.question ? record.question.slice(0, 20) + '...' : persona.welcomeTitle}
             </div>
           </div>
           <div className="w-8" />
