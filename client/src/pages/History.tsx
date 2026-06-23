@@ -85,8 +85,24 @@ function getResultSummary(record: DivinationRecord): string {
   return record.result
 }
 
+function useIsMobile(breakpoint = 640) {
+  const getInitialValue = () =>
+    typeof window !== 'undefined' && window.matchMedia(`(max-width: ${breakpoint - 1}px)`).matches
+  const [isMobile, setIsMobile] = useState(getInitialValue)
+
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${breakpoint - 1}px)`)
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [breakpoint])
+
+  return isMobile
+}
+
 export default function History() {
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const [data, setData] = useState<HistoryListResponse | null>(null)
   const [activeType, setActiveType] = useState('')
   const [page, setPage] = useState(1)
@@ -230,7 +246,7 @@ export default function History() {
         animate={{ opacity: 1, y: 0 }}
         className="text-center mb-10"
       >
-        <h1 className="text-4xl font-bold mb-3">
+        <h1 className="text-2xl sm:text-4xl font-bold mb-3">
           <span className="bg-gradient-to-r from-amber-400 via-orange-400 to-red-400 bg-clip-text text-transparent">
             历史记录
           </span>
@@ -239,12 +255,12 @@ export default function History() {
       </motion.div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-2 mb-4 justify-center">
+      <div className="flex gap-2 mb-4 overflow-x-auto scrollbar-hide touch-pan-x sm:flex-wrap sm:justify-center">
         {typeFilters.map((filter) => (
           <button
             key={filter.value}
             onClick={() => handleFilterChange(filter.value)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            className={`flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               activeType === filter.value
                 ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                 : 'bg-slate-800/50 text-slate-400 border border-slate-700 hover:border-slate-600'
@@ -292,7 +308,7 @@ export default function History() {
               selected={dateRange}
               onSelect={handleDateRangeChange}
               locale={zhCN}
-              numberOfMonths={2}
+              numberOfMonths={isMobile ? 1 : 2}
               className="text-slate-300"
               classNames={{
                 months: 'flex gap-4',
@@ -434,7 +450,7 @@ export default function History() {
                     event.stopPropagation()
                     handleDelete(item.id)
                   }}
-                  className="text-slate-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 ml-4 flex-shrink-0"
+                  className="text-slate-600 hover:text-red-400 transition-colors sm:opacity-0 sm:group-hover:opacity-100 ml-4 flex-shrink-0"
                   title="删除"
                 >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

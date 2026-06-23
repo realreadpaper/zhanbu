@@ -43,7 +43,7 @@ export default function DivinationSelector({
     return (
       <div className={`px-4 border-b border-slate-700/30 transition-all ${compact ? 'py-2' : 'py-3'}`}>
         {!compact && <div className="text-xs text-slate-500 mb-2">选择占卜方式</div>}
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide touch-pan-x">
           {types.map((type) => (
             <motion.button
               key={type.id}

@@ -17,7 +17,9 @@ body {
   background-color: var(--color-dark);
   color: #e2e8f0;
   min-height: 100vh;
+  min-height: 100dvh;
   color-scheme: dark;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* 原生日期/时间选择器深色主题适配 */
@@ -40,6 +42,37 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 
 #root {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
+}
+
+/* 隐藏滚动条 */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* 阻止聊天区域的下拉刷新干扰 */
+.overscroll-contain {
+  overscroll-behavior-y: contain;
+}
+
+/* 水平滚动容器触摸优化 */
+.touch-pan-x {
+  touch-action: pan-x;
+}
+
+/* 动态视口高度 (兼容 fallback) */
+.h-dvh {
+  height: 100vh;
+  height: 100dvh;
+}
+
+.min-h-dvh {
+  min-height: 100vh;
+  min-height: 100dvh;
 }

@@ -49,7 +49,7 @@ export default function ChatInput({ placeholder = '输入您的问题...', disab
   }
 
   return (
-    <div className="p-3 sm:p-4 border-t border-slate-700/50 bg-slate-900/50">
+    <div className="p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4 border-t border-slate-700/50 bg-slate-900/50">
       <div className="flex gap-2 sm:gap-3 items-end">
         <textarea
           ref={textareaRef}
@@ -60,7 +60,7 @@ export default function ChatInput({ placeholder = '输入您的问题...', disab
           placeholder={placeholder}
           disabled={disabled}
           rows={1}
-          className="flex-1 bg-slate-800/80 border border-slate-600/50 rounded-xl px-4 py-2.5 text-sm text-slate-200 placeholder-slate-500 outline-none focus:border-violet-500/50 transition-colors resize-none min-h-[40px] max-h-[120px] disabled:opacity-50"
+          className="flex-1 bg-slate-800/80 border border-slate-600/50 rounded-xl px-4 py-2.5 text-base text-slate-200 placeholder-slate-500 outline-none focus:border-violet-500/50 transition-colors resize-none min-h-[40px] max-h-[120px] disabled:opacity-50 sm:text-sm"
         />
         <motion.button
           whileHover={{ scale: 1.05 }}

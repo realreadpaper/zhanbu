@@ -117,7 +117,7 @@ export default function ChatPage() {
   // Loading state
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-slate-900">
+      <div className="flex flex-1 items-center justify-center bg-slate-900">
         <div className="text-center">
           <div className="w-12 h-12 border-2 border-violet-500/30 border-t-violet-500 rounded-full animate-spin mx-auto mb-4" />
           <p className="text-slate-400">加载中...</p>
@@ -129,7 +129,7 @@ export default function ChatPage() {
   // Error state
   if (error || (id && !record)) {
     return (
-      <div className="flex items-center justify-center h-screen bg-slate-900">
+      <div className="flex flex-1 items-center justify-center bg-slate-900">
         <div className="text-center">
           <div className="text-4xl mb-4">😵</div>
           <p className="text-red-400 mb-4">{error || '记录不存在'}</p>
@@ -149,7 +149,7 @@ export default function ChatPage() {
   const persona = getDivinationPersona(activeType)
 
   return (
-    <div className="h-screen flex flex-col lg:flex-row bg-slate-900">
+    <div className="flex flex-1 min-h-0 flex-col lg:flex-row bg-slate-900">
       {/* Left panel - Desktop only */}
       <div className="hidden lg:flex lg:w-80 xl:w-96 flex-col border-r border-slate-700/50 bg-slate-900/80 overflow-y-auto">
         {/* Divination selector */}
@@ -232,7 +232,7 @@ export default function ChatPage() {
       </div>
 
       {/* Right panel - Chat area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 min-h-0 flex flex-col min-w-0">
         {/* Mobile header */}
         <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-slate-700/50 bg-slate-900/80">
           <button

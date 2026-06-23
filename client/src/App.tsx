@@ -17,6 +17,7 @@ export default function App() {
   const initAuth = useAuthStore((s) => s.initAuth)
   const navigate = useNavigate()
   const location = useLocation()
+  const isChatRoute = location.pathname.startsWith('/chat')
 
   useEffect(() => {
     setNavigate(navigate)
@@ -29,7 +30,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <Header />
-      <main className="flex-1 flex flex-col">
+      <main className="flex-1 min-h-0 flex flex-col">
         <Routes>
           <Route path="/" element={<Navigate to="/chat" replace />} />
           <Route path="/tarot" element={<Navigate to="/chat?type=tarot" replace />} />
@@ -72,7 +73,7 @@ export default function App() {
           />
         </Routes>
       </main>
-      <Footer />
+      {!isChatRoute && <Footer />}
     </ErrorBoundary>
   )
 }

@@ -115,9 +115,9 @@ export default function ChatContainer({
   }
 
   return (
-    <div className="flex flex-col h-full bg-slate-900/50 relative">
-      {/* Chat header */}
-      <div className="px-4 sm:px-6 py-3 border-b border-slate-700/50 flex items-center justify-between">
+    <div className="flex flex-1 min-h-0 flex-col bg-slate-900/50 relative">
+      {/* Chat header — 手机端隐藏,由 ChatPage mobile header 替代 */}
+      <div className="hidden sm:flex px-4 sm:px-6 py-3 border-b border-slate-700/50 items-center justify-between">
         <div>
           <div className="text-sm font-semibold text-slate-200 flex items-center gap-2">
             <span>{persona.icon}</span>
@@ -163,7 +163,7 @@ export default function ChatContainer({
       <div
         ref={chatAreaRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4"
+        className="flex-1 overflow-y-auto overscroll-contain px-4 sm:px-6 py-4 space-y-4"
       >
         {/* Welcome card (show when no messages) */}
         {messages.length === 0 && !isLoading && (

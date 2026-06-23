@@ -52,7 +52,7 @@ export default function QuickQuestions({
           {title}
         </div>
       )}
-      <div className="flex gap-1.5 overflow-x-auto px-4 py-2.5 scrollbar-hide">
+      <div className="flex gap-1.5 overflow-x-auto px-4 py-2.5 scrollbar-hide touch-pan-x">
         {items.map((q) => (
           <motion.button
             key={q.id}
