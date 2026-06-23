@@ -13,8 +13,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-//go:embed prompts/chat_system_prompt.txt
-var chatPromptTemplate embed.FS
+//go:embed prompts/*.txt
+var chatPromptTemplates embed.FS
 
 const (
 	// MaxHistoryMessages is the maximum number of history messages to include in context.
@@ -54,11 +54,12 @@ type ChatDivinationStarter interface {
 
 // ChatService handles chat business logic.
 type ChatService struct {
-	chatRepo     ChatRepository
-	recordReader DivinationRecordReader
-	aiProvider   AIProvider
-	starter      ChatDivinationStarter
-	promptTmpl   string
+	chatRepo       ChatRepository
+	recordReader   DivinationRecordReader
+	aiProvider     AIProvider
+	starter        ChatDivinationStarter
+	promptTmpl     string
+	liuyaoPromptTmpl string
 }
 
 // NewChatService creates a new ChatService.
@@ -69,12 +70,20 @@ func NewChatService(chatRepo ChatRepository, recordReader DivinationRecordReader
 		aiProvider:   aiProvider,
 	}
 
-	// Load prompt template
-	data, err := chatPromptTemplate.ReadFile("prompts/chat_system_prompt.txt")
+	// Load chat prompt template
+	data, err := chatPromptTemplates.ReadFile("prompts/chat_system_prompt.txt")
 	if err != nil {
 		log.Error().Err(err).Msg("failed to load chat prompt template")
 	} else {
 		svc.promptTmpl = string(data)
+	}
+
+	// Load liuyao v2 prompt template
+	liuyaoData, err := chatPromptTemplates.ReadFile("prompts/liuyao_v2_prompt.txt")
+	if err != nil {
+		log.Error().Err(err).Msg("failed to load liuyao v2 prompt template")
+	} else {
+		svc.liuyaoPromptTmpl = string(liuyaoData)
 	}
 
 	return svc
@@ -329,6 +338,12 @@ func (s *ChatService) buildMessages(record *model.DivinationRecord, history []mo
 
 // buildSystemPrompt builds the system prompt from the template.
 func (s *ChatService) buildSystemPrompt(record *model.DivinationRecord) string {
+	// For liuyao_v2, use special prompt with book evidence
+	if record.Type == "liuyao_v2" && s.liuyaoPromptTmpl != "" {
+		return s.buildLiuyaoPrompt(record)
+	}
+
+	// For other types, use general prompt
 	if s.promptTmpl == "" {
 		// Fallback if template not loaded
 		return fmt.Sprintf("你是一位经验丰富的占卜师。用户进行了%s占卜，问题是：%s\n\n占卜结果：\n%s\n\n请基于这个占卜结果为用户提供解读和答疑。",
@@ -340,6 +355,43 @@ func (s *ChatService) buildSystemPrompt(record *model.DivinationRecord) string {
 	prompt = strings.ReplaceAll(prompt, "{{.TypeName}}", getTypeName(record.Type))
 	prompt = strings.ReplaceAll(prompt, "{{.Question}}", record.Question)
 	prompt = strings.ReplaceAll(prompt, "{{.Result}}", record.Result)
+
+	return prompt
+}
+
+// buildLiuyaoPrompt builds the prompt for liuyao v2 with book evidence.
+func (s *ChatService) buildLiuyaoPrompt(record *model.DivinationRecord) string {
+	prompt := s.liuyaoPromptTmpl
+
+	// Parse the result to extract liuyao data
+	var reading struct {
+		Method       string                       `json:"method"`
+		BenGua       *model.TakashimaHexagram     `json:"ben_gua"`
+		BianGua      *model.TakashimaHexagram     `json:"bian_gua"`
+		MutableLines []int                        `json:"mutable_lines"`
+		BookEvidence *model.TakashimaBookEvidence `json:"book_evidence"`
+	}
+	if err := json.Unmarshal([]byte(record.Result), &reading); err != nil {
+		log.Error().Err(err).Msg("failed to parse liuyao result for chat prompt")
+		// Fallback to general prompt
+		return fmt.Sprintf("你是一位精通《高岛易断》的卦师。用户进行了六爻占卜，问题是：%s\n\n占卜结果：\n%s\n\n请基于这个占卜结果为用户提供解读和答疑。",
+			record.Question, record.Result)
+	}
+
+	// Fill template
+	prompt = strings.ReplaceAll(prompt, "{{.Question}}", record.Question)
+	prompt = strings.ReplaceAll(prompt, "{{.Method}}", reading.Method)
+	prompt = strings.ReplaceAll(prompt, "{{.BenGua}}", formatPromptHexagram(reading.BenGua))
+	prompt = strings.ReplaceAll(prompt, "{{.BianGua}}", formatPromptHexagram(reading.BianGua))
+	prompt = strings.ReplaceAll(prompt, "{{.MovingLines}}", formatPromptMovingLines(reading.BenGua, reading.MutableLines))
+
+	if reading.BookEvidence != nil {
+		prompt = strings.ReplaceAll(prompt, "{{.BookEvidence}}", formatEvidenceSnippets(reading.BookEvidence.Snippets))
+		prompt = strings.ReplaceAll(prompt, "{{.MethodRules}}", formatEvidenceSnippets(reading.BookEvidence.MethodRules))
+	} else {
+		prompt = strings.ReplaceAll(prompt, "{{.BookEvidence}}", "无")
+		prompt = strings.ReplaceAll(prompt, "{{.MethodRules}}", "无")
+	}
 
 	return prompt
 }
