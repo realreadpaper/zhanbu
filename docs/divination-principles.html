@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>占卜系统工作原理文档</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --surface: #1e293b;
+    --surface2: #334155;
+    --border: #475569;
+    --text: #e2e8f0;
+    --text-dim: #94a3b8;
+    --accent: #8b5cf6;
+    --accent-soft: rgba(139,92,246,.12);
+    --green: #34d399;
+    --amber: #fbbf24;
+    --rose: #fb7185;
+    --cyan: #22d3ee;
+    --pink: #f472b6;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: -apple-system, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 2rem 1rem;
+  }
+  .container { max-width: 960px; margin: 0 auto; }
+
+  /* Header */
+  .header { text-align: center; margin-bottom: 3rem; }
+  .header h1 { font-size: 2rem; font-weight: 700; margin-bottom: .5rem; }
+  .header p { color: var(--text-dim); font-size: .95rem; }
+
+  /* TOC */
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem 2rem;
+    margin-bottom: 3rem;
+  }
+  .toc h2 { font-size: 1.1rem; margin-bottom: 1rem; color: var(--accent); }
+  .toc ol { padding-left: 1.5rem; }
+  .toc li { margin-bottom: .4rem; }
+  .toc a { color: var(--text); text-decoration: none; }
+  .toc a:hover { color: var(--accent); }
+
+  /* Section */
+  .section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+  }
+  .section h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: .3rem;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+  }
+  .section h2 .icon { font-size: 1.6rem; }
+  .section .subtitle { color: var(--text-dim); font-size: .9rem; margin-bottom: 1.5rem; }
+  .section h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 1.5rem 0 .5rem;
+    color: var(--accent);
+    border-bottom: 1px solid var(--surface2);
+    padding-bottom: .3rem;
+  }
+  .section h4 { font-size: 1rem; font-weight: 600; margin: 1rem 0 .4rem; color: var(--cyan); }
+  .section p { margin-bottom: .8rem; }
+  .section ul, .section ol { padding-left: 1.5rem; margin-bottom: 1rem; }
+  .section li { margin-bottom: .4rem; }
+
+  /* Badge */
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 9999px;
+    font-size: .75rem;
+    font-weight: 600;
+    border: 1px solid;
+  }
+  .badge-purple { color: var(--accent); border-color: rgba(139,92,246,.4); background: var(--accent-soft); }
+  .badge-green { color: var(--green); border-color: rgba(52,211,153,.4); background: rgba(52,211,153,.1); }
+  .badge-amber { color: var(--amber); border-color: rgba(251,191,36,.4); background: rgba(251,191,36,.1); }
+  .badge-rose { color: var(--rose); border-color: rgba(251,113,133,.4); background: rgba(251,113,133,.1); }
+  .badge-cyan { color: var(--cyan); border-color: rgba(34,211,238,.4); background: rgba(34,211,238,.1); }
+
+  /* Table */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: .9rem;
+  }
+  th, td {
+    padding: .6rem .8rem;
+    border: 1px solid var(--surface2);
+    text-align: left;
+  }
+  th { background: var(--surface2); font-weight: 600; white-space: nowrap; }
+  td { background: var(--bg); }
+
+  /* Code */
+  code {
+    background: var(--surface2);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: .85rem;
+    font-family: "SF Mono", "Fira Code", monospace;
+  }
+  pre {
+    background: var(--bg);
+    border: 1px solid var(--surface2);
+    border-radius: 8px;
+    padding: 1rem;
+    overflow-x: auto;
+    margin: 1rem 0;
+    font-size: .85rem;
+    line-height: 1.6;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* Formula box */
+  .formula {
+    background: var(--bg);
+    border: 1px solid var(--accent);
+    border-left: 4px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: .8rem 1rem;
+    margin: 1rem 0;
+    font-family: "SF Mono", monospace;
+    font-size: .9rem;
+  }
+
+  /* Info box */
+  .info-box {
+    background: rgba(34,211,238,.08);
+    border: 1px solid rgba(34,211,238,.3);
+    border-radius: 8px;
+    padding: .8rem 1rem;
+    margin: 1rem 0;
+    font-size: .9rem;
+  }
+  .info-box::before {
+    content: "💡 ";
+  }
+
+  /* Trigram grid */
+  .trigram-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: .5rem;
+    margin: 1rem 0;
+  }
+  .trigram-card {
+    background: var(--bg);
+    border: 1px solid var(--surface2);
+    border-radius: 8px;
+    padding: .6rem;
+    text-align: center;
+  }
+  .trigram-card .sym { font-size: 1.4rem; }
+  .trigram-card .name { font-size: .85rem; font-weight: 600; }
+  .trigram-card .detail { font-size: .75rem; color: var(--text-dim); }
+
+  /* Comparison table */
+  .compare-table th { font-size: .8rem; }
+  .compare-table td { font-size: .85rem; vertical-align: top; }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: .8rem;
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--surface2);
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- Header -->
+<div class="header">
+  <h1>🔮 占卜系统工作原理</h1>
+  <p>五种占卜方式的算法设计、计算流程与输出结构详解</p>
+  <p style="margin-top:.5rem;font-size:.8rem;color:var(--text-dim)">版本 1.0 · 最后更新：2026-06-23</p>
+</div>
+
+<!-- TOC -->
+<nav class="toc">
+  <h2>📑 目录</h2>
+  <ol>
+    <li><a href="#liuyao">六爻占卜（高岛易断）</a></li>
+    <li><a href="#meihua">梅花易数</a></li>
+    <li><a href="#tarot">塔罗牌</a></li>
+    <li><a href="#bazi">八字排盘（四柱命理）</a></li>
+    <li><a href="#horoscope">星座运势</a></li>
+    <li><a href="#compare">五种方式对比总结</a></li>
+  </ol>
+</nav>
+
+<!-- ==================== 1. 六爻 ==================== -->
+<div class="section" id="liuyao">
+  <h2><span class="icon">☯️</span> 六爻占卜（高岛易断）</h2>
+  <div class="subtitle">
+    <span class="badge badge-purple">随机起卦</span>
+    <span class="badge badge-amber">蓍草法 / 铜钱法</span>
+    以《高岛易断》为断法依据
+  </div>
+
+  <h3>1.1 概述</h3>
+  <p>六爻占卜是最传统的易学占卜方法之一。通过随机方式生成六条爻线（阴阳），组成一个六十四卦中的卦象，再根据动爻产生变卦。本系统实现了两种起卦方法，并结合日本明治时代易学大师高岛吞象的《高岛易断》原文进行 AI 解读。</p>
+
+  <h3>1.2 起卦方法</h3>
+
+  <h4>蓍草揲蓍法（Yarrow Stalk）</h4>
+  <p>模拟传统蓍草揲蓍的四营三变过程，生成 0-15 的随机数（共 16 份），映射为爻值。概率分布符合历史文献记载的不对称分布：</p>
+  <table>
+    <tr><th>随机数</th><th>爻值</th><th>类型</th><th>是否动爻</th><th>概率</th></tr>
+    <tr><td>0</td><td>9（老阳）</td><td>阳爻 ⚊</td><td>✅ 是</td><td>1/16 = 6.25%</td></tr>
+    <tr><td>1 ~ 7</td><td>8（少阴）</td><td>阴爻 ⚋</td><td>❌ 否</td><td>7/16 = 43.75%</td></tr>
+    <tr><td>8 ~ 12</td><td>7（少阳）</td><td>阳爻 ⚊</td><td>❌ 否</td><td>5/16 = 31.25%</td></tr>
+    <tr><td>13 ~ 15</td><td>6（老阴）</td><td>阴爻 ⚋</td><td>✅ 是</td><td>3/16 = 18.75%</td></tr>
+  </table>
+  <div class="info-box">蓍草法的核心特征：老阴（6）出现概率是老阳（9）的 3 倍，这与传统揲蓍法的数学推导一致。</div>
+
+  <h4>铜钱法（Coin）</h4>
+  <p>模拟三枚铜钱同时投掷，以正面（阳）朝上的数量决定爻值。概率分布对称：</p>
+  <table>
+    <tr><th>阳面数</th><th>爻值</th><th>类型</th><th>是否动爻</th><th>概率</th></tr>
+    <tr><td>3</td><td>9（老阳）</td><td>阳爻 ⚊</td><td>✅ 是</td><td>1/8 = 12.5%</td></tr>
+    <tr><td>2</td><td>8（少阴）</td><td>阴爻 ⚋</td><td>❌ 否</td><td>3/8 = 37.5%</td></tr>
+    <tr><td>1</td><td>7（少阳）</td><td>阳爻 ⚊</td><td>❌ 否</td><td>3/8 = 37.5%</td></tr>
+    <tr><td>0</td><td>6（老阴）</td><td>阴爻 ⚋</td><td>✅ 是</td><td>1/8 = 12.5%</td></tr>
+  </table>
+
+  <h3>1.3 计算流程</h3>
+  <ol>
+    <li><strong>生成六爻</strong> — 从初爻（底部）到上爻（顶部），依次生成 6 条爻线，每条包含值（6/7/8/9）、类型、是否动爻、符号（⚊/⚋）。</li>
+    <li><strong>编码为二进制</strong> — 7（少阳）和 9（老阳）映射为 <code>1</code>，6（老阴）和 8（少阴）映射为 <code>0</code>。从上爻到初爻拼成 6 位二进制串，如 <code>"111010"</code>。</li>
+    <li><strong>查找本卦</strong> — 用二进制串在 64 卦数据库中查找对应的卦象（含卦名、卦辞、象辞、六爻爻辞等完整信息）。</li>
+    <li><strong>确定动爻</strong> — 值为 9（老阳）或 6（老阴）的爻为动爻。</li>
+    <li><strong>计算变卦</strong> — 将每条动爻阴阳互变（9→8, 6→7），重新编码为二进制串，查找变卦。</li>
+    <li><strong>检索书中证据</strong> — 从《高岛易断》原文中检索与当前卦象、动爻相关的段落，作为 AI 解读的依据。</li>
+  </ol>
+
+  <h3>1.4 输出结构</h3>
+  <pre><code>{
+  "method": "yarrow",
+  "lines": [                          // 六爻（从初爻到上爻）
+    { "value": 7, "type": "young_yang",  "mutable": false, "symbol": "⚊" },
+    { "value": 8, "type": "young_yin",   "mutable": false, "symbol": "⚋" },
+    { "value": 9, "type": "old_yang",    "mutable": true,  "symbol": "⚊" },
+    ...
+  ],
+  "ben_gua": { ... },                 // 本卦（含完整文本、来源页码）
+  "bian_gua": { ... },                // 变卦
+  "mutable_lines": [2],               // 动爻索引（0-based）
+  "book_evidence": { ... },           // 高岛易断原文摘录
+  "timestamp": "..."
+}</code></pre>
+</div>
+
+<!-- ==================== 2. 梅花易数 ==================== -->
+<div class="section" id="meihua">
+  <h2><span class="icon">🌸</span> 梅花易数</h2>
+  <div class="subtitle">
+    <span class="badge badge-green">时间起卦</span>
+    <span class="badge badge-cyan">数字起卦</span>
+    师承邵雍一脉，以数成象
+  </div>
+
+  <h3>2.1 概述</h3>
+  <p>梅花易数由北宋邵雍（邵康节）所创，核心思想是"以数成象"——万物皆可起卦。本系统实现两种起卦方式：时间起卦（使用农历）和数字起卦。断法重点在于本卦、互卦、变卦与体用生克关系。</p>
+
+  <h3>2.2 先天八卦数</h3>
+  <p>梅花易数使用先天八卦序数（伏羲八卦序）：</p>
+  <div class="trigram-grid">
+    <div class="trigram-card"><div class="sym">☰</div><div class="name">1 乾</div><div class="detail">金 · 阳</div></div>
+    <div class="trigram-card"><div class="sym">☱</div><div class="name">2 兑</div><div class="detail">金 · 阴</div></div>
+    <div class="trigram-card"><div class="sym">☲</div><div class="name">3 离</div><div class="detail">火 · 阴</div></div>
+    <div class="trigram-card"><div class="sym">☳</div><div class="name">4 震</div><div class="detail">木 · 阳</div></div>
+    <div class="trigram-card"><div class="sym">☴</div><div class="name">5 巽</div><div class="detail">木 · 阴</div></div>
+    <div class="trigram-card"><div class="sym">☵</div><div class="name">6 坎</div><div class="detail">水 · 阳</div></div>
+    <div class="trigram-card"><div class="sym">☶</div><div class="name">7 艮</div><div class="detail">土 · 阳</div></div>
+    <div class="trigram-card"><div class="sym">☷</div><div class="name">8 坤</div><div class="detail">土 · 阴</div></div>
+  </div>
+  <p>取模基数为 8，余数 0 视为 8（坤）。</p>
+
+  <h3>2.3 时间起卦算法</h3>
+  <p>使用农历的年、月、日、时进行计算。年数和时数按地支序号取值：</p>
+  <table>
+    <tr><th>地支</th><th>子</th><th>丑</th><th>寅</th><th>卯</th><th>辰</th><th>巳</th><th>午</th><th>未</th><th>申</th><th>酉</th><th>戌</th><th>亥</th></tr>
+    <tr><th>序数</th><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td>9</td><td>10</td><td>11</td><td>12</td></tr>
+  </table>
+
+  <div class="formula">
+    <strong>上卦</strong> = (年数 + 农历月 + 农历日) % 8　→　余 0 取 8（坤）<br>
+    <strong>下卦</strong> = (年数 + 农历月 + 农历日 + 时辰数) % 8　→　余 0 取 8（坤）<br>
+    <strong>动爻</strong> = (年数 + 农历月 + 农历日 + 时辰数) % 6　→　余 0 取 6（上爻）
+  </div>
+
+  <div class="info-box">
+    <strong>经典验证</strong>：辰年十二月十七日申时 → 5+12+17=34, 34%8=2(兑), 34+9=43, 43%8=3(离), 43%6=1(初爻)<br>
+    → 本卦：兑上离下 = <strong>泽火革</strong>，初爻动，变卦：兑上艮下 = <strong>泽山咸</strong>
+  </div>
+
+  <h3>2.4 数字起卦算法</h3>
+  <p>用户输入任意数字（至少 2 个），系统按以下规则计算：</p>
+  <div class="formula">
+    <strong>上卦</strong> = 前半部分数字之和 % 8　→　余 0 取 8<br>
+    <strong>下卦</strong> = 全部数字之和 % 8　→　余 0 取 8<br>
+    <strong>动爻</strong> = 全部数字之和 % 6　→　余 0 取 6
+  </div>
+  <p>例如输入 <code>12 34</code>：上卦 = 12%8 = 4(震)，下卦 = 46%8 = 6(坎)，动爻 = 46%6 = 4(四爻)。</p>
+
+  <h3>2.5 互卦计算</h3>
+  <p>互卦取本卦六爻中的中间四爻重新组合：</p>
+  <div class="formula">
+    互卦下卦 = 本卦第 2、3、4 爻<br>
+    互卦上卦 = 本卦第 3、4、5 爻
+  </div>
+  <p>每卦展开为 3 爻（从下到上），例如离 = 阳/阴/阳，兑 = 阳/阳/阴。</p>
+
+  <h3>2.6 变卦计算</h3>
+  <p>将动爻所在位置的爻阴阳互变（阳变阴、阴变阳），重新组成上下卦。</p>
+
+  <h3>2.7 体用生克分析</h3>
+  <p>梅花易数的核心断法——体用关系：</p>
+  <ul>
+    <li><strong>体卦</strong> — 不动的卦（静卦）</li>
+    <li><strong>用卦</strong> — 动爻所在的卦</li>
+  </ul>
+  <p>判断规则：动爻在下卦（1~3爻），则下卦为用、上卦为体；动爻在上卦（4~6爻），则上卦为用、下卦为体。</p>
+
+  <table>
+    <tr><th>体用关系</th><th>五行关系</th><th>含义</th><th>吉凶</th></tr>
+    <tr><td>比和</td><td>体用同元素</td><td>平稳，无大碍</td><td>平</td></tr>
+    <tr><td>用生体</td><td>用卦五行生体卦</td><td>助力大，易成</td><td>吉</td></tr>
+    <tr><td>体生用</td><td>体卦五行生用卦</td><td>耗泄较多，需付出</td><td>凶</td></tr>
+    <tr><td>用克体</td><td>用卦五行克体卦</td><td>阻力大，需谨慎</td><td>凶</td></tr>
+    <tr><td>体克用</td><td>体卦五行克用卦</td><td>可以掌控，但需主动</td><td>吉</td></tr>
+  </table>
+
+  <h3>2.8 输出结构</h3>
+  <pre><code>{
+  "method": "time",
+  "source_values": {
+    "method": "time",
+    "year_branch": "辰",  "year_number": 5,
+    "lunar_month": 12,     "lunar_day": 17,
+    "hour_branch": "申",   "hour_number": 9
+  },
+  "upper_trigram": { "name": "兑", "element": "金" },
+  "lower_trigram": { "name": "离", "element": "火" },
+  "ben_gua":  { "name": "泽火革", "upper": "兑", "lower": "离" },
+  "hu_gua":   { "name": "天风姤", "upper": "乾", "lower": "巽" },
+  "bian_gua": { "name": "泽山咸", "upper": "兑", "lower": "艮" },
+  "moving_line": 1,
+  "ti_yong": {
+    "ti": { "name": "兑", "element": "金" },
+    "yong": { "name": "离", "element": "火" },
+    "relation": "用克体"
+  }
+}</code></pre>
+</div>
+
+<!-- ==================== 3. 塔罗牌 ==================== -->
+<div class="section" id="tarot">
+  <h2><span class="icon">🎴</span> 塔罗牌</h2>
+  <div class="subtitle">
+    <span class="badge badge-rose">随机抽牌</span>
+    <span class="badge badge-purple">Fisher-Yates 洗牌</span>
+    78 张牌 · 4 种牌阵
+  </div>
+
+  <h3>3.1 概述</h3>
+  <p>塔罗牌是西方占卜体系中最具代表性的工具，共 78 张牌，分为大阿尔卡纳（22 张）和小阿尔卡纳（56 张，分四花色各 14 张）。本系统从数据库加载全部牌面信息，通过随机洗牌和抽牌完成占卜。</p>
+
+  <h3>3.2 牌面数据库</h3>
+  <p>每张牌包含以下信息：</p>
+  <table>
+    <tr><th>字段</th><th>说明</th></tr>
+    <tr><td>Name / NameEn</td><td>中文名 / 英文名</td></tr>
+    <tr><td>Type</td><td>major（大阿尔卡纳）/ minor（小阿尔卡纳）</td></tr>
+    <tr><td>Suit</td><td>花色：wands(权杖) / cups(圣杯) / swords(宝剑) / pentacles(星币)</td></tr>
+    <tr><td>KeywordsUp / KeywordsDown</td><td>正位 / 逆位关键词</td></tr>
+    <tr><td>MeaningUp / MeaningDown</td><td>正位 / 逆位完整释义</td></tr>
+  </table>
+
+  <h3>3.3 牌阵类型</h3>
+  <table>
+    <tr><th>牌阵</th><th>牌数</th><th>位置含义</th></tr>
+    <tr><td>单牌（single）</td><td>1</td><td>核心信息</td></tr>
+    <tr><td>三牌阵（three）</td><td>3</td><td>过去 · 现在 · 未来</td></tr>
+    <tr><td>凯尔特十字（celtic）</td><td>10</td><td>现况、挑战、潜意识、过去、意识、近未来、自我认知、外在环境、希望恐惧、最终结果</td></tr>
+    <tr><td>爱情十字（love）</td><td>5</td><td>你的状态、对方状态、关系挑战、你的期望、关系方向</td></tr>
+  </table>
+
+  <h3>3.4 算法流程</h3>
+  <ol>
+    <li><strong>加载牌库</strong> — 从数据库读取全部 78 张牌。</li>
+    <li><strong>Fisher-Yates 洗牌</strong> — 对整副牌进行标准 Fisher-Yates 随机置换，保证每种排列等概率出现。</li>
+    <li><strong>抽取牌面</strong> — 取洗牌后的前 N 张（N = 牌阵所需牌数）。</li>
+    <li><strong>判定正逆位</strong> — 每张牌以 50% 概率判定为正位（upright）或逆位（reversed）。</li>
+    <li><strong>组合结果</strong> — 将每张牌与牌阵位置名称配对。</li>
+  </ol>
+
+  <div class="info-box">系统使用数据库存储牌面数据而非嵌入式 JSON，便于后续扩展自定义牌组。牌面抽出后不从牌库移除（实际洗牌后概率极低重复）。</div>
+
+  <h3>3.5 输出结构</h3>
+  <pre><code>{
+  "spread": "three",
+  "question": "近期事业如何",
+  "cards": [
+    {
+      "position": 1,
+      "position_name": "过去",
+      "card": {
+        "name": "愚者",
+        "meaning_up": "新的开始、冒险精神...",
+        "meaning_down": "鲁莽、缺乏计划..."
+      },
+      "orientation": "upright"
+    },
+    ...
+  ]
+}</code></pre>
+</div>
+
+<!-- ==================== 4. 八字 ==================== -->
+<div class="section" id="bazi">
+  <h2><span class="icon">📋</span> 八字排盘（四柱命理）</h2>
+  <div class="subtitle">
+    <span class="badge badge-amber">确定性算法</span>
+    <span class="badge badge-green">无随机性</span>
+    以出生年月日时排出四柱
+  </div>
+
+  <h3>4.1 概述</h3>
+  <p>八字命理（又称四柱推命）是中国传统命理学的核心方法。根据出生的年、月、日、时各排出一组天干地支（共八个字），再分析五行分布、日主强弱、十神关系来推断命理结构。</p>
+
+  <h3>4.2 基础数据</h3>
+
+  <h4>天干（10 个）</h4>
+  <table>
+    <tr><th>天干</th><th>甲</th><th>乙</th><th>丙</th><th>丁</th><th>戊</th><th>己</th><th>庚</th><th>辛</th><th>壬</th><th>癸</th></tr>
+    <tr><th>五行</th><td colspan="2">木</td><td colspan="2">火</td><td colspan="2">土</td><td colspan="2">金</td><td colspan="2">水</td></tr>
+  </table>
+
+  <h4>地支（12 个）</h4>
+  <table>
+    <tr><th>地支</th><th>子</th><th>丑</th><th>寅</th><th>卯</th><th>辰</th><th>巳</th><th>午</th><th>未</th><th>申</th><th>酉</th><th>戌</th><th>亥</th></tr>
+    <tr><th>五行</th><td>水</td><td>土</td><td>木</td><td>木</td><td>土</td><td>火</td><td>火</td><td>土</td><td>金</td><td>金</td><td>土</td><td>水</td></tr>
+  </table>
+
+  <h3>4.3 四柱排法</h3>
+
+  <h4>年柱</h4>
+  <div class="formula">
+    天干索引 = (年份 - 4) % 10<br>
+    地支索引 = (年份 - 4) % 12
+  </div>
+  <p>以公元 4 年为甲子年基准。</p>
+
+  <h4>月柱</h4>
+  <p>地支固定：正月=寅、二月=卯...十二月=丑。天干由年干推算，遵循"甲己之年丙作首"口诀：</p>
+  <table>
+    <tr><th>年干</th><th>甲/己</th><th>乙/庚</th><th>丙/辛</th><th>丁/壬</th><th>戊/癸</th></tr>
+    <tr><th>正月天干起始</th><td>丙(2)</td><td>戊(4)</td><td>庚(6)</td><td>壬(8)</td><td>甲(0)</td></tr>
+  </table>
+
+  <h4>日柱</h4>
+  <p>使用儒略日数（JDN）计算。以 1900-01-01 = 庚子日（甲子序 36）为参考点：</p>
+  <div class="formula">
+    甲子序 = (36 + 目标JDN - 参考JDN) % 60<br>
+    天干 = 甲子序 % 10　　地支 = 甲子序 % 12
+  </div>
+
+  <h4>时柱</h4>
+  <p>地支：23-1点=子时，1-3点=丑时... 时干由日干推算，遵循"甲己还加甲"口诀。</p>
+
+  <h3>4.4 五行分析</h3>
+  <ol>
+    <li>统计四柱八字（4 天干 + 4 地支）中各五行出现次数</li>
+    <li>找出最强和最弱的五行</li>
+    <li>确定日主（日柱天干）的五行</li>
+    <li>判断日主强弱：出现 ≥3 次 = 偏强，≤1 次 = 偏弱，否则中和</li>
+    <li>推导用神：日主偏强取克我之五行，日主偏弱取生我之五行</li>
+    <li>忌神为用神的对立面</li>
+  </ol>
+
+  <h3>4.5 十神分析</h3>
+  <p>将其他天干与日主对比，确定五行生克关系：</p>
+  <table>
+    <tr><th>关系</th><th>含义</th><th>十神</th></tr>
+    <tr><td>同我</td><td>与日主同五行</td><td>比肩</td></tr>
+    <tr><td>我生</td><td>日主所生之五行</td><td>食神</td></tr>
+    <tr><td>生我</td><td>生助日主之五行</td><td>偏印</td></tr>
+    <tr><td>我克</td><td>日主所克之五行</td><td>偏财</td></tr>
+    <tr><td>克我</td><td>克制日主之五行</td><td>偏官</td></tr>
+  </table>
+
+  <h3>4.6 输出结构</h3>
+  <pre><code>{
+  "birth": { "solar": "1990-05-12 08:30", "lunar": "庚午年" },
+  "pillars": {
+    "year":  { "tian_gan": "庚", "di_zhi": "午", "wu_xing": "金", "na_yin": "路旁土" },
+    "month": { "tian_gan": "辛", "di_zhi": "巳", "wu_xing": "金", "na_yin": "白蜡金" },
+    "day":   { "tian_gan": "丙", "di_zhi": "寅", "wu_xing": "火", "na_yin": "炉中火" },
+    "hour":  { "tian_gan": "壬", "di_zhi": "辰", "wu_xing": "水", "na_yin": "长流水" }
+  },
+  "five_elements": {
+    "metal": 3, "wood": 1, "water": 1, "fire": 2, "earth": 1,
+    "strongest": "金", "weakest": "木",
+    "day_master": "火", "strength": "偏弱",
+    "yong_shen": "木", "ji_shen": "金"
+  },
+  "ten_gods": [...]
+}</code></pre>
+</div>
+
+<!-- ==================== 5. 星座运势 ==================== -->
+<div class="section" id="horoscope">
+  <h2><span class="icon">⭐</span> 星座运势</h2>
+  <div class="subtitle">
+    <span class="badge badge-cyan">确定性算法</span>
+    <span class="badge badge-purple">SHA-256 种子</span>
+    12 星座 · 3 种周期
+  </div>
+
+  <h3>5.1 概述</h3>
+  <p>星座运势模块为 12 个西方星座生成每日、每周、每月的运势评分和解读文本。系统采用确定性算法——相同星座 + 日期 + 周期始终产生相同结果，确保用户多次查询的一致性。</p>
+
+  <h3>5.2 星座数据库</h3>
+  <table>
+    <tr><th>星座</th><th>英文</th><th>元素</th><th>守护星</th></tr>
+    <tr><td>白羊座</td><td>Aries</td><td>火</td><td>火星</td></tr>
+    <tr><td>金牛座</td><td>Taurus</td><td>土</td><td>金星</td></tr>
+    <tr><td>双子座</td><td>Gemini</td><td>风</td><td>水星</td></tr>
+    <tr><td>巨蟹座</td><td>Cancer</td><td>水</td><td>月亮</td></tr>
+    <tr><td>狮子座</td><td>Leo</td><td>火</td><td>太阳</td></tr>
+    <tr><td>处女座</td><td>Virgo</td><td>土</td><td>水星</td></tr>
+    <tr><td>天秤座</td><td>Libra</td><td>风</td><td>金星</td></tr>
+    <tr><td>天蝎座</td><td>Scorpio</td><td>水</td><td>冥王星</td></tr>
+    <tr><td>射手座</td><td>Sagittarius</td><td>火</td><td>木星</td></tr>
+    <tr><td>摩羯座</td><td>Capricorn</td><td>土</td><td>土星</td></tr>
+    <tr><td>水瓶座</td><td>Aquarius</td><td>风</td><td>天王星</td></tr>
+    <tr><td>双鱼座</td><td>Pisces</td><td>水</td><td>海王星</td></tr>
+  </table>
+
+  <h3>5.3 算法流程</h3>
+
+  <h4>Step 1：日期归一化</h4>
+  <ul>
+    <li>每日：直接使用日期字符串 <code>"2006-01-02"</code></li>
+    <li>每周：转为 ISO 周字符串 <code>"2006-W02"</code>，同周内所有天产生相同结果</li>
+    <li>每月：转为年月 <code>"2006-01"</code></li>
+  </ul>
+
+  <h4>Step 2：确定性种子生成</h4>
+  <div class="formula">
+    seed = SHA-256( 星座名 + 归一化日期 + 周期 ) 的前 8 字节 → uint64
+  </div>
+  <p>同一个 星座+日期+周期 组合永远产生相同的种子值。</p>
+
+  <h4>Step 3：五维评分</h4>
+  <p>从种子中按不同偏移量提取 5 个 1~5 的整数评分：综合、爱情、事业、财运、健康。</p>
+  <div class="formula">
+    score = min + ( (seed >> (offset*8)) XOR (seed >> 32) ) & 0xFFFFFFFF ) % (max - min + 1)
+  </div>
+
+  <h4>Step 4：幸运元素</h4>
+  <ul>
+    <li>幸运数字：从种子偏移 5 提取，范围 1~9</li>
+    <li>幸运颜色：从种子偏移 6 映射到 12 色池（红、橙、黄、绿、蓝、紫、粉、白、金、银、青、棕）</li>
+  </ul>
+
+  <h4>Step 5：等级映射与模板选取</h4>
+  <table>
+    <tr><th>分数</th><th>等级</th></tr>
+    <tr><td>1~2</td><td>low（低迷）</td></tr>
+    <tr><td>3</td><td>mid（平稳）</td></tr>
+    <tr><td>4~5</td><td>high（旺盛）</td></tr>
+  </table>
+  <p>从预置的 JSON 模板文件中，按 <code>星座_维度_等级</code> 键选取对应的解读文本。模板覆盖 12 星座 × 3 周期 × 5 维度 × 3 等级 = 每周期 540 条模板。</p>
+
+  <h3>5.4 输出结构</h3>
+  <pre><code>{
+  "zodiac": "scorpio",
+  "zodiac_cn": "天蝎座",
+  "period": "daily",
+  "date": "2026-06-23",
+  "overall": 4,
+  "love": 3,
+  "career": 5,
+  "wealth": 2,
+  "health": 4,
+  "lucky_number": 7,
+  "lucky_color": "紫色",
+  "summary": "今天整体能量较高...",
+  "detail": {
+    "love": "感情方面...",
+    "career": "事业方面...",
+    "wealth": "财运方面...",
+    "health": "健康方面..."
+  }
+}</code></pre>
+</div>
+
+<!-- ==================== 6. 对比总结 ==================== -->
+<div class="section" id="compare">
+  <h2><span class="icon">📊</span> 五种方式对比总结</h2>
+
+  <table class="compare-table">
+    <tr>
+      <th>维度</th>
+      <th>☯️ 六爻</th>
+      <th>🌸 梅花易数</th>
+      <th>🎴 塔罗牌</th>
+      <th>📋 八字</th>
+      <th>⭐ 星座</th>
+    </tr>
+    <tr>
+      <th>来源体系</th>
+      <td>中国·易经</td>
+      <td>中国·邵雍</td>
+      <td>西方·神秘学</td>
+      <td>中国·命理学</td>
+      <td>西方·占星术</td>
+    </tr>
+    <tr>
+      <th>随机性</th>
+      <td>有（rand）</td>
+      <td>无（时间/数字）</td>
+      <td>有（rand）</td>
+      <td>无（出生时间）</td>
+      <td>无（SHA-256）</td>
+    </tr>
+    <tr>
+      <th>核心数学</th>
+      <td>二进制编码<br>64 卦查表</td>
+      <td>取模运算<br>%8 卦 %6 爻</td>
+      <td>Fisher-Yates<br>置换 + 翻转</td>
+      <td>儒略日数<br>干支循环</td>
+      <td>SHA-256<br>位运算提取</td>
+    </tr>
+    <tr>
+      <th>输入</th>
+      <td>问题</td>
+      <td>问题 + 时间/数字</td>
+      <td>问题 + 牌阵</td>
+      <td>出生日期时间</td>
+      <td>星座 + 周期</td>
+    </tr>
+    <tr>
+      <th>关键输出</th>
+      <td>本卦、变卦<br>动爻、书证</td>
+      <td>本卦、互卦、变卦<br>体用生克</td>
+      <td>牌面、正逆位<br>位置含义</td>
+      <td>四柱、五行<br>十神、用神</td>
+      <td>五维评分<br>幸运元素</td>
+    </tr>
+    <tr>
+      <th>AI 角色</th>
+      <td>玄机卦师</td>
+      <td>观梅心易师</td>
+      <td>星牌解语师</td>
+      <td>四柱明鉴师</td>
+      <td>星轨知微师</td>
+    </tr>
+    <tr>
+      <th>断法重点</th>
+      <td>卦辞 + 爻辞<br>高岛原文</td>
+      <td>体用生克<br>卦象象征</td>
+      <td>牌面象征<br>正逆位含义</td>
+      <td>五行强弱<br>用神忌神</td>
+      <td>评分等级<br>模板文本</td>
+    </tr>
+  </table>
+
+  <h3>6.1 架构共性</h3>
+  <p>五种方式均遵循统一的三层架构：</p>
+  <ol>
+    <li><strong>Service 层</strong> — 纯算法服务，输入参数 → 计算 → 输出结构化结果</li>
+    <li><strong>Handler 层</strong> — HTTP 接口，参数校验 + 调用 Service + 保存 DivinationRecord</li>
+    <li><strong>AI 层</strong> — 专用 prompt 模板，将结构化结果传给 AI 进行自然语言解读</li>
+  </ol>
+  <p>所有占卜结果统一存储在 <code>DivinationRecord</code> 表中（type + question + result JSON + ai_reading），支持历史记录查看和聊天模式多轮对话。</p>
+</div>
+
+<!-- Footer -->
+<div class="footer">
+  <p>占卜系统工作原理文档 · 内部技术参考 · 2026</p>
+</div>
+
+</div>
+</body>
+</html>
