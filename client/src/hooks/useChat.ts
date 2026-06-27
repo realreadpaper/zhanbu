@@ -53,6 +53,19 @@ export function useChat({ sessionId }: UseChatOptions = {}): UseChatReturn {
   const cleanupRef = useRef<(() => void) | null>(null)
   const streamContentRef = useRef('')
 
+  // Refresh session and record (used after stream completes to pick up re-divination updates)
+  const refreshSessionAndRecord = useCallback(async (sessionId: number) => {
+    try {
+      const updatedSession = await getSession(sessionId)
+      setSession(updatedSession)
+      setMessages(updatedSession.messages || [])
+      const updatedRecord = await fetchHistoryDetail(updatedSession.record_id)
+      setRecord(updatedRecord)
+    } catch {
+      // Silently ignore refresh errors — the UI already has the previous state
+    }
+  }, [])
+
   // Stream a message
   const streamMessage = useCallback((sessionId: number, content: string) => {
     setIsStreaming(true)
@@ -85,6 +98,8 @@ export function useChat({ sessionId }: UseChatOptions = {}): UseChatReturn {
       () => {
         setIsStreaming(false)
         cleanupRef.current = null
+        // Refresh session/record to pick up potential re-divination updates
+        refreshSessionAndRecord(sessionId)
       },
       // onError
       (err: Error) => {
@@ -102,7 +117,7 @@ export function useChat({ sessionId }: UseChatOptions = {}): UseChatReturn {
         })
       }
     )
-  }, [])
+  }, [refreshSessionAndRecord])
 
   const streamInitialReadingForSession = useCallback((sessionId: number) => {
     setIsStreaming(true)
@@ -131,6 +146,7 @@ export function useChat({ sessionId }: UseChatOptions = {}): UseChatReturn {
       () => {
         setIsStreaming(false)
         cleanupRef.current = null
+        refreshSessionAndRecord(sessionId)
       },
       (err: Error) => {
         setIsStreaming(false)
@@ -145,7 +161,7 @@ export function useChat({ sessionId }: UseChatOptions = {}): UseChatReturn {
         })
       }
     )
-  }, [])
+  }, [refreshSessionAndRecord])
 
   // Initialize session from record
   const initSession = useCallback(async (recordId: number, firstMessage?: string) => {

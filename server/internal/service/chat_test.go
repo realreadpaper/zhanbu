@@ -2,12 +2,14 @@ package service
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"zhanbu/config"
 	"zhanbu/internal/model"
 )
 
@@ -108,6 +110,14 @@ func (m *mockChatRepo) CountMessagesBySession(sessionID uint) (int64, error) {
 	return int64(len(m.messages[sessionID])), nil
 }
 
+func (m *mockChatRepo) UpdateSessionRecordID(sessionID uint, recordID uint) error {
+	if session, ok := m.sessions[sessionID]; ok {
+		session.RecordID = recordID
+		return nil
+	}
+	return errors.New("session not found")
+}
+
 type fakeChatStarter struct {
 	record *model.DivinationRecord
 }
@@ -134,7 +144,7 @@ func TestChatServiceCreateModeSessionCreatesRecordAndUserMessage(t *testing.T) {
 		Result:   `{"mode":"test"}`,
 	})
 	starter := &fakeChatStarter{}
-	svc := NewChatService(chatRepo, recordRepo, &MockAIProvider{Response: "这是一段聊天模式AI解读"})
+	svc := NewChatService(chatRepo, recordRepo, &MockAIProvider{Response: "这是一段聊天模式AI解读"}, nil)
 	svc.SetDivinationStarter(starter)
 
 	session, err := svc.CreateModeSession(7, ChatStartOptions{
@@ -184,7 +194,7 @@ func TestChatServiceCreateModeSessionDoesNotWaitForAIReading(t *testing.T) {
 		Result:   `{"mode":"test"}`,
 	})
 	starter := &fakeChatStarter{}
-	svc := NewChatService(chatRepo, recordRepo, &failingChatProvider{})
+	svc := NewChatService(chatRepo, recordRepo, &failingChatProvider{}, nil)
 	svc.SetDivinationStarter(starter)
 
 	session, err := svc.CreateModeSession(7, ChatStartOptions{
@@ -219,7 +229,7 @@ func TestChatServiceStreamInitialReadingSavesAIReading(t *testing.T) {
 		Role:      "user",
 		Content:   "我今天适合做决定吗",
 	}))
-	svc := NewChatService(chatRepo, recordRepo, &MockAIProvider{Response: "这是一段聊天模式AI解读"})
+	svc := NewChatService(chatRepo, recordRepo, &MockAIProvider{Response: "这是一段聊天模式AI解读"}, nil)
 
 	stream, err := svc.StreamInitialReading(7, 1)
 	require.NoError(t, err)
@@ -234,6 +244,57 @@ func TestChatServiceStreamInitialReadingSavesAIReading(t *testing.T) {
 	assert.Equal(t, "assistant", chatRepo.messages[1][1].Role)
 	assert.Equal(t, "这是一段聊天模式AI解读", chatRepo.messages[1][1].Content)
 	assert.Equal(t, "这是一段聊天模式AI解读", recordRepo.records[0].AIReading)
+}
+
+func TestChatServiceBuildMessagesIncludesMeihuaComposeUserContext(t *testing.T) {
+	profiles := &config.ProfilesConfig{
+		Profiles: map[string]config.ProfileConfig{
+			"shaoyong_meihua": *testMeihuaProfile,
+		},
+		DefaultBindings: map[string]string{
+			"meihua": "shaoyong_meihua",
+		},
+	}
+	record := &model.DivinationRecord{
+		ID:       42,
+		UserID:   7,
+		Type:     "meihua",
+		Question: "最近事业如何？",
+		Result: `{
+			"method": "time",
+			"source_values": {
+				"year_branch": "午",
+				"lunar_month": 5,
+				"lunar_day": 9,
+				"lunar_display": "丙午年五月初九子时",
+				"hour_branch": "子"
+			},
+			"ben_gua": {"upper": {"name": "兑", "element": "金"}, "lower": {"name": "离", "element": "火"}, "name": "泽火革"},
+			"hu_gua": {"upper": {"name": "乾", "element": "金"}, "lower": {"name": "巽", "element": "木"}, "name": "天风姤"},
+			"bian_gua": {"upper": {"name": "兑", "element": "金"}, "lower": {"name": "艮", "element": "土"}, "name": "泽山咸"},
+			"moving_line": 1,
+			"ti_yong": {
+				"ti": {"name": "兑", "element": "金"},
+				"yong": {"name": "离", "element": "火"},
+				"relation": "用克体"
+			}
+		}`,
+	}
+	history := []model.ChatMessage{
+		{Role: "user", Content: "最近事业如何？"},
+	}
+	svc := NewChatService(newMockChatRepo(), newMockDivinationRepo(), &MockAIProvider{}, profiles)
+
+	messages := svc.buildMessages(record, history)
+
+	require.Len(t, messages, 3)
+	assert.Equal(t, "system", messages[0]["role"])
+	assert.Contains(t, messages[0]["content"], "康节先生")
+	assert.Equal(t, "user", messages[1]["role"])
+	assert.True(t, strings.Contains(messages[1]["content"], "泽火革"), "compose context should include ben gua")
+	assert.True(t, strings.Contains(messages[1]["content"], "体用生克"), "compose context should include output structure")
+	assert.Equal(t, "user", messages[2]["role"])
+	assert.Equal(t, "最近事业如何？", messages[2]["content"])
 }
 
 func TestFormatMeihuaMethodDescPrefersChineseLunarDisplay(t *testing.T) {
@@ -260,7 +321,7 @@ func TestChatServiceSendMessageBroadcastsFullStreamAndSavesFullResponse(t *testi
 		Title:    "今晚适合出门吗",
 	}))
 	provider := &controllableChatProvider{ch: make(chan string)}
-	svc := NewChatService(chatRepo, recordRepo, provider)
+	svc := NewChatService(chatRepo, recordRepo, provider, nil)
 
 	stream, err := svc.SendMessage(7, 1, "继续说")
 	require.NoError(t, err)

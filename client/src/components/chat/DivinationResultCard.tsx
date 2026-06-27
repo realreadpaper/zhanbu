@@ -8,6 +8,7 @@ interface DivinationResultCardProps {
 
 export default function DivinationResultCard({ record }: DivinationResultCardProps) {
   const persona = getDivinationPersona(record.type)
+  const profileName = record.prompt_profile_name || persona.name
   const summary = buildSummary(record)
 
   return (
@@ -39,7 +40,7 @@ export default function DivinationResultCard({ record }: DivinationResultCardPro
               </div>
             ))}
           </div>
-          <div className="mt-3 text-xs text-slate-500">下面由 {persona.name} 基于此结果继续解读。</div>
+          <div className="mt-3 text-xs text-slate-500">下面由 {profileName} 基于此结果继续解读。</div>
         </div>
       </div>
     </motion.div>

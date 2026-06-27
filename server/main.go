@@ -59,8 +59,20 @@ func main() {
 	}
 	logger.Info().Msg("seed data completed")
 
+	// Load prompt profiles
+	logger.Info().Msg("loading prompt profiles...")
+	profiles, err := config.LoadProfiles("")
+	if err != nil {
+		logger.Warn().Err(err).Msg("failed to load prompt profiles, using empty config")
+		profiles = &config.ProfilesConfig{
+			Profiles:        make(map[string]config.ProfileConfig),
+			DefaultBindings: make(map[string]string),
+		}
+	}
+	logger.Info().Msgf("prompt profiles: %s", profiles.FormatLoadedSummary())
+
 	// Setup router
-	r := router.SetupRouter(db, cfg, logger)
+	r := router.SetupRouter(db, cfg, logger, profiles)
 
 	// Start server
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)

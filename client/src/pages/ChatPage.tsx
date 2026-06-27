@@ -12,6 +12,9 @@ interface DivinationRecord {
   result: string
   ai_reading: string
   created_at: string
+  prompt_profile_id?: string
+  prompt_profile_name?: string
+  prompt_profile_version?: string
 }
 
 interface TarotResultCard {
@@ -148,6 +151,7 @@ export default function ChatPage() {
   const cardInfo = getCardInfo()
   const activeType = record?.type || selectedType || queryType
   const persona = getDivinationPersona(activeType)
+  const profileDisplayName = record?.prompt_profile_name || persona.name
 
   return (
     <div className="flex flex-1 min-h-0 flex-col lg:flex-row bg-slate-900">
@@ -185,7 +189,7 @@ export default function ChatPage() {
               </div>
               <div>
                 <div className="text-sm font-semibold text-slate-200">
-                  {persona.name}
+                  {profileDisplayName}
                 </div>
                 <div className="text-xs text-slate-500">
                   {record ? formatDate(record.created_at) : persona.subtitle}
@@ -244,7 +248,7 @@ export default function ChatPage() {
           </button>
           <div className="text-center flex-1">
             <div className="text-sm font-semibold text-slate-200">
-              {persona.icon} {persona.name}
+              {persona.icon} {profileDisplayName}
             </div>
             <div className="text-xs text-slate-500">
               {record?.question ? record.question.slice(0, 20) + '...' : persona.welcomeTitle}

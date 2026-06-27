@@ -521,6 +521,9 @@ export default function History() {
                             {detail.question && (
                               <p className="mt-2 text-sm text-slate-400">{detail.question}</p>
                             )}
+                            {detail.prompt_profile_name && (
+                              <p className="mt-1 text-xs text-violet-400">解读人格：{detail.prompt_profile_name}</p>
+                            )}
                           </div>
 
                           <div className="rounded-lg border border-slate-700/60 bg-slate-900/40 p-4">

@@ -125,6 +125,11 @@ func (r *ChatRepository) GetRecentMessages(sessionID uint, limit int) ([]model.C
 	return messages, nil
 }
 
+// UpdateSessionRecordID updates a chat session's record ID（重新占卜时切换记录）.
+func (r *ChatRepository) UpdateSessionRecordID(sessionID uint, recordID uint) error {
+	return r.db.Model(&model.ChatSession{}).Where("id = ?", sessionID).Update("record_id", recordID).Error
+}
+
 // CountMessagesBySession counts messages in a session.
 func (r *ChatRepository) CountMessagesBySession(sessionID uint) (int64, error) {
 	var count int64

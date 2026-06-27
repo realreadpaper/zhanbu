@@ -38,8 +38,9 @@ services:
       ZHANBU_JWT_SECRET: ${JWT_SECRET:-change-this-to-a-secure-secret}
       ZHANBU_AI_PROVIDER: ${AI_PROVIDER:-openai}
       ZHANBU_AI_API_KEY: ${AI_API_KEY:-}
-      ZHANBU_AI_MODEL: ${AI_MODEL:-gpt-4}
-      ZHANBU_AI_BASE_URL: ${AI_BASE_URL:-https://api.openai.com/v1}
+      ZHANBU_AI_MODEL: ${AI_MODEL:-deepseek-v4-pro}
+      ZHANBU_AI_FALLBACK_MODEL: ${AI_FALLBACK_MODEL:-deepseek-v4-flash}
+      ZHANBU_AI_BASE_URL: ${AI_BASE_URL:-https://api.deepseek.com}
       ZHANBU_AI_MAX_TOKENS: ${AI_MAX_TOKENS:-5000}
       ZHANBU_AI_TEMPERATURE: ${ZHANBU_AI_TEMPERATURE:-0.7}
       ZHANBU_BCRYPT_COST: ${ZHANBU_BCRYPT_COST:-8}

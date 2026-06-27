@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"zhanbu/config"
 	"zhanbu/internal/middleware"
 	"zhanbu/internal/model"
 	"zhanbu/internal/service"
@@ -17,13 +18,14 @@ import (
 
 // MeiHuaHandler handles MeiHua divination HTTP requests.
 type MeiHuaHandler struct {
-	svc   *service.MeiHuaService
-	saver service.DivinationRecordSaver
+	svc      *service.MeiHuaService
+	saver    service.DivinationRecordSaver
+	profiles *config.ProfilesConfig
 }
 
 // NewMeiHuaHandler creates a new MeiHuaHandler.
-func NewMeiHuaHandler(svc *service.MeiHuaService, saver service.DivinationRecordSaver) *MeiHuaHandler {
-	return &MeiHuaHandler{svc: svc, saver: saver}
+func NewMeiHuaHandler(svc *service.MeiHuaService, saver service.DivinationRecordSaver, profiles *config.ProfilesConfig) *MeiHuaHandler {
+	return &MeiHuaHandler{svc: svc, saver: saver, profiles: profiles}
 }
 
 // DivinationType 占卜类型标识。
@@ -129,6 +131,9 @@ func (h *MeiHuaHandler) saveRecord(userID uint, divinationType, question string,
 		Question: question,
 		Result:   string(data),
 	}
+
+	service.ApplyDefaultPromptProfile(record, h.profiles)
+
 	if err := h.saver.Create(record); err != nil {
 		return nil, err
 	}

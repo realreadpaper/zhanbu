@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"zhanbu/config"
 	"zhanbu/internal/model"
 	apperrors "zhanbu/pkg/errors"
 
@@ -38,6 +39,7 @@ type ChatRepository interface {
 	CreateMessage(message *model.ChatMessage) error
 	GetRecentMessages(sessionID uint, limit int) ([]model.ChatMessage, error)
 	CountMessagesBySession(sessionID uint) (int64, error)
+	UpdateSessionRecordID(sessionID uint, recordID uint) error
 }
 
 // ChatStartOptions describes a new chat-mode session that is not tied to an
@@ -54,21 +56,24 @@ type ChatDivinationStarter interface {
 
 // ChatService handles chat business logic.
 type ChatService struct {
-	chatRepo         ChatRepository
-	recordReader     DivinationRecordReader
-	aiProvider       AIProvider
-	starter          ChatDivinationStarter
-	promptTmpl       string
-	liuyaoPromptTmpl string
-	meihuaPromptTmpl string
+	chatRepo             ChatRepository
+	recordReader         DivinationRecordReader
+	aiProvider           AIProvider
+	starter              ChatDivinationStarter
+	profiles             *config.ProfilesConfig
+	redivinationDetector *ReDivinationDetector
+	promptTmpl           string
+	liuyaoPromptTmpl     string
 }
 
 // NewChatService creates a new ChatService.
-func NewChatService(chatRepo ChatRepository, recordReader DivinationRecordReader, aiProvider AIProvider) *ChatService {
+func NewChatService(chatRepo ChatRepository, recordReader DivinationRecordReader, aiProvider AIProvider, profiles *config.ProfilesConfig) *ChatService {
 	svc := &ChatService{
-		chatRepo:     chatRepo,
-		recordReader: recordReader,
-		aiProvider:   aiProvider,
+		chatRepo:             chatRepo,
+		recordReader:         recordReader,
+		aiProvider:           aiProvider,
+		profiles:             profiles,
+		redivinationDetector: &ReDivinationDetector{},
 	}
 
 	// Load chat prompt template
@@ -85,14 +90,6 @@ func NewChatService(chatRepo ChatRepository, recordReader DivinationRecordReader
 		log.Error().Err(err).Msg("failed to load liuyao v2 prompt template")
 	} else {
 		svc.liuyaoPromptTmpl = string(liuyaoData)
-	}
-
-	// Load meihua prompt template
-	meihuaData, err := chatPromptTemplates.ReadFile("prompts/meihua_prompt.txt")
-	if err != nil {
-		log.Error().Err(err).Msg("failed to load meihua prompt template")
-	} else {
-		svc.meihuaPromptTmpl = string(meihuaData)
 	}
 
 	return svc
@@ -293,6 +290,30 @@ func (s *ChatService) SendMessage(userID uint, sessionID uint, content string) (
 		return nil, fmt.Errorf("failed to save user message: %w", err)
 	}
 
+	// 智能意图识别：检测是否重新占卜（仅梅花易数）
+	if s.starter != nil && record.Type == "meihua" {
+		intent := s.redivinationDetector.Detect(record.Type, content)
+		if intent.ShouldReDivine {
+			log.Info().
+				Str("divination_type", record.Type).
+				Uint("session_id", sessionID).
+				Str("user_message", truncateForLog(content, 80)).
+				Str("extracted_question", intent.Question).
+				Msg("re-divination intent detected")
+
+			newRecord, err := s.handleReDivination(userID, sessionID, record, intent)
+			if err != nil {
+				log.Warn().Err(err).Msg("re-divination failed, falling back to existing record")
+			} else {
+				record = newRecord
+				log.Info().
+					Uint("new_record_id", newRecord.ID).
+					Uint("session_id", sessionID).
+					Msg("re-divination succeeded, using new record")
+			}
+		}
+	}
+
 	// Load conversation history
 	history, err := s.chatRepo.GetRecentMessages(sessionID, MaxHistoryMessages)
 	if err != nil {
@@ -308,7 +329,7 @@ func (s *ChatService) SendMessage(userID uint, sessionID uint, content string) (
 		return nil, err
 	}
 
-	clientCh := s.streamAndSaveResponse(ch, sessionID, session.RecordID, false)
+	clientCh := s.streamAndSaveResponse(ch, sessionID, record.ID, false)
 
 	// Update session timestamp
 	go s.chatRepo.UpdateSessionTimestamp(sessionID)
@@ -355,14 +376,7 @@ func (s *ChatService) StreamInitialReading(userID uint, sessionID uint) (<-chan 
 
 // buildMessages builds the messages array for the AI API.
 func (s *ChatService) buildMessages(record *model.DivinationRecord, history []model.ChatMessage) []map[string]string {
-	messages := make([]map[string]string, 0, len(history)+1)
-
-	// Build system prompt
-	systemPrompt := s.buildSystemPrompt(record)
-	messages = append(messages, map[string]string{
-		"role":    "system",
-		"content": systemPrompt,
-	})
+	messages := s.buildPromptMessages(record)
 
 	// Add conversation history
 	for _, msg := range history {
@@ -375,16 +389,30 @@ func (s *ChatService) buildMessages(record *model.DivinationRecord, history []mo
 	return messages
 }
 
+// buildPromptMessages builds the system prompt and optional structured context
+// messages that should precede the conversation history.
+func (s *ChatService) buildPromptMessages(record *model.DivinationRecord) []map[string]string {
+	// For meihua, Compose returns a system identity plus a user context with
+	// facts and output structure. Both are required for the chat path.
+	if record.Type == "meihua" && s.profiles != nil {
+		if messages := s.buildMeihuaComposeMessages(record); len(messages) > 0 {
+			return messages
+		}
+	}
+
+	return []map[string]string{
+		{
+			"role":    "system",
+			"content": s.buildSystemPrompt(record),
+		},
+	}
+}
+
 // buildSystemPrompt builds the system prompt from the template.
 func (s *ChatService) buildSystemPrompt(record *model.DivinationRecord) string {
 	// For liuyao_v2, use special prompt with book evidence
 	if record.Type == "liuyao_v2" && s.liuyaoPromptTmpl != "" {
 		return s.buildLiuyaoPrompt(record)
-	}
-
-	// For meihua, use meihua-specific prompt
-	if record.Type == "meihua" && s.meihuaPromptTmpl != "" {
-		return s.buildMeihuaPrompt(record)
 	}
 
 	// For other types, use general prompt
@@ -440,37 +468,84 @@ func (s *ChatService) buildLiuyaoPrompt(record *model.DivinationRecord) string {
 	return prompt
 }
 
-// buildMeihuaPrompt builds the prompt for meihua divination.
-func (s *ChatService) buildMeihuaPrompt(record *model.DivinationRecord) string {
-	prompt := s.meihuaPromptTmpl
+// buildMeihuaComposeMessages builds the messages for meihua using Compose with profile.
+// Returns nil if Compose fails, so caller can fall back to the generic prompt.
+func (s *ChatService) buildMeihuaComposeMessages(record *model.DivinationRecord) []map[string]string {
+	log.Info().
+		Str("divination_type", "meihua").
+		Uint("record_id", record.ID).
+		Bool("has_profiles", s.profiles != nil).
+		Int("profiles_count", profileCount(s.profiles)).
+		Msg("chat: starting meihua Compose pipeline")
 
-	var reading struct {
-		Method     string               `json:"method"`
-		BenGua     model.MeiHuaHexagram `json:"ben_gua"`
-		HuGua      model.MeiHuaHexagram `json:"hu_gua"`
-		BianGua    model.MeiHuaHexagram `json:"bian_gua"`
-		MovingLine int                  `json:"moving_line"`
-		TiYong     model.MeiHuaTiYong   `json:"ti_yong"`
+	// Step 1: Resolve default profile
+	profile, err := s.profiles.DefaultProfile("meihua")
+	if err != nil {
+		log.Warn().
+			Err(err).
+			Str("divination_type", "meihua").
+			Uint("record_id", record.ID).
+			Str("step", "DefaultProfile").
+			Msg("chat: DefaultProfile failed for meihua, falling back to generic prompt")
+		return nil
 	}
-	if err := json.Unmarshal([]byte(record.Result), &reading); err != nil {
-		log.Error().Err(err).Msg("failed to parse meihua result for chat prompt")
-		return fmt.Sprintf("你是一位精通梅花易数的卦师。用户进行了梅花易数占卜，问题是：%s\n\n占卜结果：\n%s\n\n请基于这个占卜结果为用户提供解读和答疑。",
-			record.Question, record.Result)
+	log.Info().
+		Str("profile_id", s.profiles.DefaultBindings["meihua"]).
+		Str("profile_name", profile.Name).
+		Str("profile_version", profile.Version).
+		Str("step", "DefaultProfile ✓").
+		Msg("chat: profile resolved")
+
+	// Step 2: Parse facts from result JSON
+	facts, err := ParseFacts("meihua", record.Result, record.Question)
+	if err != nil {
+		log.Warn().
+			Err(err).
+			Uint("record_id", record.ID).
+			Str("step", "ParseFacts").
+			Msg("chat: ParseFacts failed for meihua, falling back to generic prompt")
+		return nil
 	}
+	log.Info().
+		Int("fact_count", len(facts)).
+		Strs("fact_keys", factKeysList(facts)).
+		Str("step", "ParseFacts ✓").
+		Msg("chat: facts parsed")
 
-	methodDesc := formatMeihuaMethodDesc(reading.Method, record.Result)
+	// Step 3: Compose system + user messages
+	messages, err := Compose(profile, InterpretationInput{
+		DivinationType: "meihua",
+		Question:       record.Question,
+		ResultJSON:     record.Result,
+		ResultFacts:    facts,
+		Mode:           "chat",
+	})
+	if err != nil {
+		log.Warn().
+			Err(err).
+			Uint("record_id", record.ID).
+			Str("step", "Compose").
+			Msg("chat: Compose failed for meihua, falling back to generic prompt")
+		return nil
+	}
+	log.Info().
+		Int("system_chars", len([]rune(messages.System))).
+		Int("user_chars", len([]rune(messages.User))).
+		Str("step", "Compose ✓").
+		Msg("chat: Compose succeeded")
 
-	prompt = strings.ReplaceAll(prompt, "{{.Question}}", record.Question)
-	prompt = strings.ReplaceAll(prompt, "{{.Method}}", methodDesc)
-	prompt = strings.ReplaceAll(prompt, "{{.BenGua}}", formatMeihuaHexagram(reading.BenGua))
-	prompt = strings.ReplaceAll(prompt, "{{.HuGua}}", formatMeihuaHexagram(reading.HuGua))
-	prompt = strings.ReplaceAll(prompt, "{{.BianGua}}", formatMeihuaHexagram(reading.BianGua))
-	prompt = strings.ReplaceAll(prompt, "{{.MovingLine}}", formatMovingLine(reading.MovingLine))
-	prompt = strings.ReplaceAll(prompt, "{{.Ti}}", fmt.Sprintf("%s（%s）", reading.TiYong.Ti.Name, reading.TiYong.Ti.Element))
-	prompt = strings.ReplaceAll(prompt, "{{.Yong}}", fmt.Sprintf("%s（%s）", reading.TiYong.Yong.Name, reading.TiYong.Yong.Element))
-	prompt = strings.ReplaceAll(prompt, "{{.TiYongRelation}}", reading.TiYong.Relation)
+	return []map[string]string{
+		{"role": "system", "content": messages.System},
+		{"role": "user", "content": messages.User},
+	}
+}
 
-	return prompt
+// profileCount returns the number of profiles in the config, for log context.
+func profileCount(profiles *config.ProfilesConfig) int {
+	if profiles == nil {
+		return 0
+	}
+	return len(profiles.Profiles)
 }
 
 // formatMeihuaMethodDesc formats the method description for the prompt.
@@ -510,6 +585,63 @@ func formatMeihuaMethodDesc(method string, resultJSON string) string {
 		}
 	}
 	return "时间起卦"
+}
+
+// handleReDivination 处理重新占卜：创建新记录、更新会话、保存通知消息。
+func (s *ChatService) handleReDivination(
+	userID uint,
+	sessionID uint,
+	currentRecord *model.DivinationRecord,
+	intent *ReDivinationIntent,
+) (*model.DivinationRecord, error) {
+	question := intent.Question
+	if question == "" {
+		question = currentRecord.Question
+	}
+
+	// 通过 starter 创建新的占卜记录
+	newRecord, err := s.starter.Start(userID, currentRecord.Type, question)
+	if err != nil {
+		return nil, fmt.Errorf("re-divination start: %w", err)
+	}
+
+	// 更新会话指向新记录
+	if err := s.chatRepo.UpdateSessionRecordID(sessionID, newRecord.ID); err != nil {
+		return nil, fmt.Errorf("update session record_id: %w", err)
+	}
+
+	// 保存通知消息
+	note := s.buildReDivinationNote(currentRecord.Type, newRecord)
+	noteMsg := &model.ChatMessage{
+		SessionID: sessionID,
+		Role:      "assistant",
+		Content:   note,
+	}
+	if err := s.chatRepo.CreateMessage(noteMsg); err != nil {
+		log.Warn().Err(err).Msg("failed to save re-divination notification message")
+	}
+
+	return newRecord, nil
+}
+
+// buildReDivinationNote 生成重新占卜的通知消息。
+func (s *ChatService) buildReDivinationNote(divinationType string, newRecord *model.DivinationRecord) string {
+	var b strings.Builder
+	b.WriteString("🔮 已为您重新起卦，以下是新卦象的解读：\n\n")
+
+	if divinationType == "meihua" {
+		facts, err := ParseFacts("meihua", newRecord.Result, newRecord.Question)
+		if err == nil {
+			b.WriteString("**卦象概览**\n")
+			for _, key := range factDisplayOrder("meihua") {
+				if val, ok := facts[key]; ok && val != "" {
+					b.WriteString(fmt.Sprintf("- **%s**：%s\n", factDisplayName(key), val))
+				}
+			}
+		}
+	}
+
+	return b.String()
 }
 
 // collectAndSaveResponse collects the full AI response and saves it.

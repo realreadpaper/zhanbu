@@ -93,9 +93,10 @@ zhanbu/
 | `DB_PASSWORD` | PostgreSQL 密码 | `zhanbu_secret` |
 | `DB_NAME` | 数据库名 | `zhanbu` |
 | `JWT_SECRET` | JWT 签名密钥 | `change-this-to-a-secure-secret` |
-| `AI_API_KEY` | OpenAI API Key | 空 |
-| `AI_MODEL` | AI 模型名称 | `gpt-4` |
-| `AI_BASE_URL` | AI API 地址 | `https://api.openai.com/v1` |
+| `AI_API_KEY` | OpenAI 兼容 API Key | 空 |
+| `AI_MODEL` | AI 主模型名称 | `deepseek-v4-pro` |
+| `AI_FALLBACK_MODEL` | AI 兜底模型名称 | `deepseek-v4-flash` |
+| `AI_BASE_URL` | AI API 地址 | `https://api.deepseek.com` |
 | `PORT` | Render 注入的后端监听端口 | `18080` |
 | `ZHANBU_SERVER_PORT` | 后端监听端口，优先级高于 `PORT` | `18080` |
 | `ZHANBU_BCRYPT_COST` | 注册/登录密码哈希成本；Render 低配实例可设为 `8` 或 `10` | `10` |

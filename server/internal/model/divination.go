@@ -12,6 +12,11 @@ type DivinationRecord struct {
 	AIReading string    `gorm:"type:text;default:''" json:"ai_reading"` // AI interpretation
 	CreatedAt time.Time `json:"created_at"`
 
+	// Prompt profile metadata
+	PromptProfileID      string `gorm:"type:text;default:''" json:"prompt_profile_id"`
+	PromptProfileName    string `gorm:"type:text;default:''" json:"prompt_profile_name"`
+	PromptProfileVersion string `gorm:"type:text;default:''" json:"prompt_profile_version"`
+
 	// Association
 	User User `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE" json:"-"`
 }

@@ -30,6 +30,9 @@ export interface DivinationRecord {
   result: string
   ai_reading: string
   created_at: string
+  prompt_profile_id?: string
+  prompt_profile_name?: string
+  prompt_profile_version?: string
 }
 
 export async function fetchHistory(

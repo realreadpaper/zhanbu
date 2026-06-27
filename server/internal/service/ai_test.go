@@ -1,7 +1,11 @@
 package service
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+	"text/template"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -46,8 +50,62 @@ func TestNewAIService(t *testing.T) {
 	provider := &MockAIProvider{Response: "test"}
 	reader := NewMockResultReader()
 
-	svc := NewAIService(provider, reader)
+	svc := NewAIService(provider, reader, nil)
 	assert.NotNil(t, svc)
+}
+
+func TestOpenAIProviderLoadPromptsDoesNotRegisterMeihuaLegacyPrompt(t *testing.T) {
+	provider := &OpenAIProvider{
+		prompts: make(map[string]*template.Template),
+	}
+
+	err := provider.loadPrompts()
+
+	require.NoError(t, err)
+	assert.NotContains(t, provider.prompts, "meihua")
+	assert.Contains(t, provider.prompts, "liuyao_v2")
+}
+
+func TestOpenAIProviderChatCompletionFallsBackToFlashModel(t *testing.T) {
+	var requestedModels []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var payload struct {
+			Model string `json:"model"`
+		}
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+		requestedModels = append(requestedModels, payload.Model)
+
+		if payload.Model == "deepseek-v4-pro" {
+			http.Error(w, "pro unavailable", http.StatusBadGateway)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = w.Write([]byte("data: {\"choices\":[{\"delta\":{\"content\":\"ok\"}}]}\n\n"))
+		_, _ = w.Write([]byte("data: [DONE]\n\n"))
+	}))
+	defer server.Close()
+
+	provider := &OpenAIProvider{
+		apiKey:        "sk-test",
+		baseURL:       server.URL,
+		model:         "deepseek-v4-pro",
+		fallbackModel: "deepseek-v4-flash",
+		maxTokens:     1000,
+		temperature:   0.7,
+		client:        server.Client(),
+		prompts:       make(map[string]*template.Template),
+	}
+
+	ch, err := provider.ChatCompletion([]map[string]string{{"role": "user", "content": "ping"}})
+
+	require.NoError(t, err)
+	var got string
+	for chunk := range ch {
+		got += chunk
+	}
+	assert.Equal(t, "ok", got)
+	assert.Equal(t, []string{"deepseek-v4-pro", "deepseek-v4-flash"}, requestedModels)
 }
 
 func TestAIService_Interpret_Success(t *testing.T) {
@@ -63,7 +121,7 @@ func TestAIService_Interpret_Success(t *testing.T) {
 		Result:   `{"spread":"single","cards":[],"timestamp":"2026-01-01"}`,
 	}
 
-	svc := NewAIService(provider, reader)
+	svc := NewAIService(provider, reader, nil)
 
 	ch, err := svc.Interpret(1, 1, "tarot", "", false)
 	require.NoError(t, err)
@@ -91,7 +149,7 @@ func TestAIService_Interpret_DoesNotSaveIncompleteReading(t *testing.T) {
 		Result:   `{"method":"coins","ben_gua":{"name":"乾"}}`,
 	}
 
-	svc := NewAIService(provider, reader)
+	svc := NewAIService(provider, reader, nil)
 
 	ch, err := svc.Interpret(1, 1, "liuyao_v2", "", false)
 	require.NoError(t, err)
@@ -109,14 +167,14 @@ func TestAIService_Interpret_RecordNotFound(t *testing.T) {
 	provider := &MockAIProvider{Response: "test"}
 	reader := NewMockResultReader()
 
-	svc := NewAIService(provider, reader)
+	svc := NewAIService(provider, reader, nil)
 
 	_, err := svc.Interpret(1, 999, "tarot", "", false)
 	assert.Error(t, err)
 }
 
 func TestAIService_InterpretDirect_ProviderUnavailable(t *testing.T) {
-	svc := NewAIService(nil, NewMockResultReader())
+	svc := NewAIService(nil, NewMockResultReader(), nil)
 
 	ch, err := svc.InterpretDirect("bazi", `{"birth":{"solar":"2026-05-31 16:08"}}`, "八字排盘")
 
@@ -142,7 +200,7 @@ func TestAIService_Interpret_ExistingReading(t *testing.T) {
 		AIReading: "existing reading",
 	}
 
-	svc := NewAIService(provider, reader)
+	svc := NewAIService(provider, reader, nil)
 
 	ch, err := svc.Interpret(1, 1, "tarot", "", false)
 	require.NoError(t, err)
@@ -169,7 +227,7 @@ func TestAIService_Interpret_ForceRegeneratesExistingReading(t *testing.T) {
 		AIReading: "old partial reading",
 	}
 
-	svc := NewAIService(provider, reader)
+	svc := NewAIService(provider, reader, nil)
 
 	ch, err := svc.Interpret(1, 1, "liuyao_v2", "", true)
 	require.NoError(t, err)
@@ -295,7 +353,7 @@ func TestAIService_Interpret_WithQuestion(t *testing.T) {
 		Result:   `{"spread":"single","cards":[]}`,
 	}
 
-	svc := NewAIService(provider, reader)
+	svc := NewAIService(provider, reader, nil)
 
 	// Test with custom question
 	ch, err := svc.Interpret(1, 1, "tarot", "自定义问题", false)

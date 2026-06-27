@@ -7,12 +7,14 @@ interface ChatMessageProps {
   isStreaming?: boolean
   /** Current divination type for persona display */
   divinationType?: string
+  /** Profile name from backend (takes priority over local persona) */
+  profileName?: string
 }
 
 /**
  * ChatMessage component displays a single chat message bubble.
  */
-export default function ChatMessage({ message, isStreaming, divinationType }: ChatMessageProps) {
+export default function ChatMessage({ message, isStreaming, divinationType, profileName }: ChatMessageProps) {
   const isUser = message.role === 'user'
   const isAssistant = message.role === 'assistant'
   const persona = divinationType ? getDivinationPersona(divinationType) : null
@@ -67,7 +69,7 @@ export default function ChatMessage({ message, isStreaming, divinationType }: Ch
       <div className={`flex-1 min-w-0 ${isUser ? 'text-right' : ''}`}>
         {/* Name */}
         <div className={`text-xs text-slate-500 mb-1 px-1 ${isUser ? 'text-right' : ''}`}>
-          {isAssistant ? (persona?.name || 'AI 占卜师') : '我'}
+          {isAssistant ? (profileName || persona?.name || 'AI 占卜师') : '我'}
         </div>
 
         {/* Bubble */}

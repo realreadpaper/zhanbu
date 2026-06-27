@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"zhanbu/config"
 	"zhanbu/internal/model"
 	apperrors "zhanbu/pkg/errors"
 )
@@ -21,6 +22,7 @@ type ChatModeStarter struct {
 	bazi       *BaZiService
 	horoscope  *HoroscopeService
 	meihua     *MeiHuaService
+	profiles   *config.ProfilesConfig
 }
 
 // NewChatModeStarter returns a starter that delegates to existing divination services.
@@ -40,6 +42,11 @@ func NewChatModeStarter(
 		horoscope:  horoscope,
 		meihua:     meihua,
 	}
+}
+
+// SetProfiles configures the prompt profiles for profile metadata saving.
+func (s *ChatModeStarter) SetProfiles(profiles *config.ProfilesConfig) {
+	s.profiles = profiles
 }
 
 // Start creates a real divination record for the selected mode.
@@ -149,6 +156,9 @@ func (s *ChatModeStarter) saveResult(userID uint, divinationType string, questio
 		Question: question,
 		Result:   string(resultJSON),
 	}
+
+	ApplyDefaultPromptProfile(record, s.profiles)
+
 	if err := s.recordRepo.Create(record); err != nil {
 		return nil, err
 	}

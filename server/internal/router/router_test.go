@@ -22,7 +22,10 @@ func TestSetupRouter_AIInterpretRouteExistsWhenProviderUnavailable(t *testing.T)
 		AI:        config.AIConfig{APIKey: ""},
 		RateLimit: config.RateLimitConfig{APIPerMinute: 60},
 	}
-	r := SetupRouter(nil, cfg, zerolog.Nop())
+	r := SetupRouter(nil, cfg, zerolog.Nop(), &config.ProfilesConfig{
+		Profiles:        make(map[string]config.ProfileConfig),
+		DefaultBindings: make(map[string]string),
+	})
 
 	jwtManager := utils.NewJWTManager(cfg.JWT.Secret, cfg.JWT.AccessTTL, cfg.JWT.RefreshTTL)
 	tokenPair, err := jwtManager.GenerateTokenPair(1, "tester")
@@ -47,7 +50,10 @@ func TestSetupRouter_RefreshTokenRouteDoesNotRequireAccessToken(t *testing.T) {
 		AI:        config.AIConfig{APIKey: ""},
 		RateLimit: config.RateLimitConfig{APIPerMinute: 60},
 	}
-	r := SetupRouter(nil, cfg, zerolog.Nop())
+	r := SetupRouter(nil, cfg, zerolog.Nop(), &config.ProfilesConfig{
+		Profiles:        make(map[string]config.ProfileConfig),
+		DefaultBindings: make(map[string]string),
+	})
 
 	body := bytes.NewBufferString(`{}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", body)

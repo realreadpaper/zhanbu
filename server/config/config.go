@@ -82,12 +82,13 @@ type JWTConfig struct {
 
 // AIConfig holds AI-related configuration.
 type AIConfig struct {
-	Provider    string  `mapstructure:"provider"`
-	APIKey      string  `mapstructure:"api_key"`
-	Model       string  `mapstructure:"model"`
-	BaseURL     string  `mapstructure:"base_url"`
-	MaxTokens   int     `mapstructure:"max_tokens"`
-	Temperature float64 `mapstructure:"temperature"`
+	Provider      string  `mapstructure:"provider"`
+	APIKey        string  `mapstructure:"api_key"`
+	Model         string  `mapstructure:"model"`
+	FallbackModel string  `mapstructure:"fallback_model"`
+	BaseURL       string  `mapstructure:"base_url"`
+	MaxTokens     int     `mapstructure:"max_tokens"`
+	Temperature   float64 `mapstructure:"temperature"`
 }
 
 // RateLimitConfig holds rate limit configuration.
@@ -139,7 +140,7 @@ func LoadFromEnv() *Config {
 		Server:    ServerConfig{Port: 18080, Mode: "debug"},
 		Database:  DatabaseConfig{Host: "localhost", Port: 15432, User: "zhanbu", Password: "zhanbu_secret", DBName: "zhanbu", SSLMode: "disable", Timezone: "Asia/Shanghai"},
 		JWT:       JWTConfig{Secret: "dev-secret-key-change-in-production", AccessTTL: time.Hour, RefreshTTL: 7 * 24 * time.Hour},
-		AI:        AIConfig{Provider: "openai", APIKey: "", Model: "gpt-4", BaseURL: "https://api.openai.com/v1", MaxTokens: 5000, Temperature: 0.7},
+		AI:        AIConfig{Provider: "openai", APIKey: "", Model: "deepseek-v4-pro", FallbackModel: "deepseek-v4-flash", BaseURL: "https://api.deepseek.com", MaxTokens: 5000, Temperature: 0.7},
 		RateLimit: RateLimitConfig{AIPerMinute: 5, APIPerMinute: 60},
 		CORS:      CORSConfig{AllowedOrigins: []string{"http://localhost:5173"}},
 		SMTP:      SMTPConfig{Enabled: false, Host: "smtp.qq.com", Port: 465, SSL: true},
@@ -212,6 +213,9 @@ func LoadFromEnv() *Config {
 	if v := os.Getenv("ZHANBU_AI_MODEL"); v != "" {
 		cfg.AI.Model = v
 	}
+	if v := os.Getenv("ZHANBU_AI_FALLBACK_MODEL"); v != "" {
+		cfg.AI.FallbackModel = v
+	}
 	if v := os.Getenv("ZHANBU_AI_BASE_URL"); v != "" {
 		cfg.AI.BaseURL = v
 	}
@@ -272,8 +276,9 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("jwt.refresh_ttl", "168h")
 	v.SetDefault("ai.provider", "openai")
 	v.SetDefault("ai.api_key", "")
-	v.SetDefault("ai.model", "gpt-4")
-	v.SetDefault("ai.base_url", "https://api.openai.com/v1")
+	v.SetDefault("ai.model", "deepseek-v4-pro")
+	v.SetDefault("ai.fallback_model", "deepseek-v4-flash")
+	v.SetDefault("ai.base_url", "https://api.deepseek.com")
 	v.SetDefault("ai.max_tokens", 5000)
 	v.SetDefault("ai.temperature", 0.7)
 	v.SetDefault("rate_limit.ai_per_minute", 5)

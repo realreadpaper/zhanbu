@@ -41,23 +41,25 @@ type AIProvider interface {
 
 // OpenAIProvider implements AIProvider using OpenAI-compatible API.
 type OpenAIProvider struct {
-	apiKey      string
-	baseURL     string
-	model       string
-	maxTokens   int
-	temperature float64
-	client      *http.Client
-	prompts     map[string]*template.Template
+	apiKey        string
+	baseURL       string
+	model         string
+	fallbackModel string
+	maxTokens     int
+	temperature   float64
+	client        *http.Client
+	prompts       map[string]*template.Template
 }
 
 // NewOpenAIProvider creates a new OpenAI-compatible AI provider.
 func NewOpenAIProvider(cfg *config.AIConfig) (*OpenAIProvider, error) {
 	provider := &OpenAIProvider{
-		apiKey:      cfg.APIKey,
-		baseURL:     cfg.BaseURL,
-		model:       cfg.Model,
-		maxTokens:   cfg.MaxTokens,
-		temperature: cfg.Temperature,
+		apiKey:        cfg.APIKey,
+		baseURL:       cfg.BaseURL,
+		model:         cfg.Model,
+		fallbackModel: cfg.FallbackModel,
+		maxTokens:     cfg.MaxTokens,
+		temperature:   cfg.Temperature,
 		client: &http.Client{
 			Timeout: aiHTTPTimeout,
 		},
@@ -73,7 +75,7 @@ func NewOpenAIProvider(cfg *config.AIConfig) (*OpenAIProvider, error) {
 
 // loadPrompts loads prompt templates from embedded files.
 func (p *OpenAIProvider) loadPrompts() error {
-	types := []string{"tarot", "horoscope", "liuyao", "liuyao_v2", "bazi", "meihua"}
+	types := []string{"tarot", "horoscope", "liuyao", "liuyao_v2", "bazi"}
 	for _, t := range types {
 		filename := fmt.Sprintf("prompts/%s_prompt.txt", t)
 		data, err := promptTemplates.ReadFile(filename)
@@ -115,7 +117,6 @@ func (p *OpenAIProvider) Interpret(divinationType string, result string, questio
 
 	// Make streaming API request
 	reqBody := map[string]interface{}{
-		"model": p.model,
 		"messages": []map[string]string{
 			{
 				"role":    "system",
@@ -131,30 +132,9 @@ func (p *OpenAIProvider) Interpret(divinationType string, result string, questio
 		"stream":      true,
 	}
 
-	jsonBody, err := json.Marshal(reqBody)
+	resp, err := p.doChatCompletionRequest(reqBody)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
-	}
-
-	apiURL := strings.TrimRight(p.baseURL, "/") + "/chat/completions"
-	req, err := http.NewRequest("POST", apiURL, bytes.NewReader(jsonBody))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+p.apiKey)
-
-	resp, err := p.client.Do(req)
-	if err != nil {
-		return nil, apperrors.NewWithErr(apperrors.ErrAIServiceUnavailable, "AI service request failed", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
-		return nil, apperrors.New(apperrors.ErrAIServiceUnavailable,
-			fmt.Sprintf("AI service returned status %d: %s", resp.StatusCode, string(body)))
+		return nil, err
 	}
 
 	// Parse streaming response
@@ -242,37 +222,15 @@ func (p *OpenAIProvider) Interpret(divinationType string, result string, questio
 func (p *OpenAIProvider) ChatCompletion(messages []map[string]string) (<-chan string, error) {
 	// Make streaming API request
 	reqBody := map[string]interface{}{
-		"model":       p.model,
 		"messages":    messages,
 		"max_tokens":  p.maxTokens,
 		"temperature": p.temperature,
 		"stream":      true,
 	}
 
-	jsonBody, err := json.Marshal(reqBody)
+	resp, err := p.doChatCompletionRequest(reqBody)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
-	}
-
-	apiURL := strings.TrimRight(p.baseURL, "/") + "/chat/completions"
-	req, err := http.NewRequest("POST", apiURL, bytes.NewReader(jsonBody))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+p.apiKey)
-
-	resp, err := p.client.Do(req)
-	if err != nil {
-		return nil, apperrors.NewWithErr(apperrors.ErrAIServiceUnavailable, "AI service request failed", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
-		return nil, apperrors.New(apperrors.ErrAIServiceUnavailable,
-			fmt.Sprintf("AI service returned status %d: %s", resp.StatusCode, string(body)))
+		return nil, err
 	}
 
 	// Parse streaming response
@@ -350,6 +308,66 @@ func (p *OpenAIProvider) ChatCompletion(messages []map[string]string) (<-chan st
 	return ch, nil
 }
 
+func (p *OpenAIProvider) doChatCompletionRequest(reqBody map[string]interface{}) (*http.Response, error) {
+	models := []string{p.model}
+	if p.fallbackModel != "" && p.fallbackModel != p.model {
+		models = append(models, p.fallbackModel)
+	}
+
+	var lastErr error
+	for i, model := range models {
+		reqBody["model"] = model
+		resp, err := p.sendChatCompletionRequest(reqBody)
+		if err == nil && resp.StatusCode == http.StatusOK {
+			return resp, nil
+		}
+
+		lastErr = err
+		if resp != nil {
+			body, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			lastErr = apperrors.New(apperrors.ErrAIServiceUnavailable,
+				fmt.Sprintf("AI service returned status %d: %s", resp.StatusCode, string(body)))
+		}
+
+		if i+1 < len(models) {
+			log.Warn().
+				Str("component", "ai").
+				Str("model", model).
+				Str("fallback_model", models[i+1]).
+				Err(lastErr).
+				Msg("AI model request failed, retrying fallback model")
+		}
+	}
+
+	if lastErr != nil {
+		return nil, lastErr
+	}
+	return nil, apperrors.New(apperrors.ErrAIServiceUnavailable, "AI service request failed")
+}
+
+func (p *OpenAIProvider) sendChatCompletionRequest(reqBody map[string]interface{}) (*http.Response, error) {
+	jsonBody, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	apiURL := strings.TrimRight(p.baseURL, "/") + "/chat/completions"
+	req, err := http.NewRequest("POST", apiURL, bytes.NewReader(jsonBody))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+p.apiKey)
+
+	resp, err := p.client.Do(req)
+	if err != nil {
+		return nil, apperrors.NewWithErr(apperrors.ErrAIServiceUnavailable, "AI service request failed", err)
+	}
+	return resp, nil
+}
+
 func buildPromptData(divinationType string, result string, question string) map[string]string {
 	data := map[string]string{
 		"Spread":       extractSpread(result),
@@ -364,10 +382,6 @@ func buildPromptData(divinationType string, result string, question string) map[
 		"BookEvidence": "无",
 		"MethodRules":  "无",
 	}
-	if divinationType == "meihua" {
-		return buildMeihuaPromptData(result, question, data)
-	}
-
 	if divinationType != "liuyao_v2" {
 		return data
 	}
@@ -400,36 +414,6 @@ func buildPromptData(divinationType string, result string, question string) map[
 			Interface("prompt_method_rules", summarizeEvidenceForLog(reading.BookEvidence.MethodRules)).
 			Msg("using Takashima book evidence in AI prompt")
 	}
-	return data
-}
-
-func buildMeihuaPromptData(result string, question string, data map[string]string) map[string]string {
-	var reading struct {
-		Method     string              `json:"method"`
-		BenGua     model.MeiHuaHexagram `json:"ben_gua"`
-		HuGua      model.MeiHuaHexagram `json:"hu_gua"`
-		BianGua    model.MeiHuaHexagram `json:"bian_gua"`
-		MovingLine int                 `json:"moving_line"`
-		TiYong     model.MeiHuaTiYong   `json:"ti_yong"`
-	}
-	if err := json.Unmarshal([]byte(result), &reading); err != nil {
-		return data
-	}
-
-	methodDesc := "时间起卦"
-	if reading.Method == "number" {
-		methodDesc = "数字起卦"
-	}
-
-	data["Method"] = methodDesc
-	data["BenGua"] = formatMeihuaHexagram(reading.BenGua)
-	data["HuGua"] = formatMeihuaHexagram(reading.HuGua)
-	data["BianGua"] = formatMeihuaHexagram(reading.BianGua)
-	data["MovingLine"] = formatMovingLine(reading.MovingLine)
-	data["Ti"] = fmt.Sprintf("%s（%s）", reading.TiYong.Ti.Name, reading.TiYong.Ti.Element)
-	data["Yong"] = fmt.Sprintf("%s（%s）", reading.TiYong.Yong.Name, reading.TiYong.Yong.Element)
-	data["TiYongRelation"] = reading.TiYong.Relation
-
 	return data
 }
 
@@ -538,13 +522,15 @@ type AIResultReader interface {
 type AIService struct {
 	provider AIProvider
 	reader   AIResultReader
+	profiles *config.ProfilesConfig
 }
 
 // NewAIService creates a new AIService.
-func NewAIService(provider AIProvider, reader AIResultReader) *AIService {
+func NewAIService(provider AIProvider, reader AIResultReader, profiles *config.ProfilesConfig) *AIService {
 	return &AIService{
 		provider: provider,
 		reader:   reader,
+		profiles: profiles,
 	}
 }
 
@@ -581,7 +567,7 @@ func (s *AIService) Interpret(userID uint, recordID uint, divinationType string,
 	}
 
 	// Start streaming interpretation
-	ch, err := s.provider.Interpret(divinationType, record.Result, question)
+	ch, err := s.streamInterpretation(divinationType, record.Result, question)
 	if err != nil {
 		return nil, err
 	}
@@ -614,7 +600,101 @@ func (s *AIService) InterpretDirect(divinationType string, result string, questi
 			"AI service is not configured. Set ZHANBU_AI_API_KEY to enable AI readings.")
 	}
 
+	return s.streamInterpretation(divinationType, result, question)
+}
+
+// streamInterpretation routes to Compose-based or legacy prompt based on divination type.
+func (s *AIService) streamInterpretation(divinationType string, result string, question string) (<-chan string, error) {
+	// For meihua, use Compose with profile
+	if divinationType == "meihua" {
+		log.Info().
+			Str("divination_type", divinationType).
+			Bool("has_profiles", s.profiles != nil).
+			Str("question", truncateForLog(question, 60)).
+			Msg("streamInterpretation: routing meihua via Compose pipeline")
+
+		if s.profiles == nil {
+			log.Warn().Msg("streamInterpretation: profiles config is nil, falling back to legacy template")
+			return s.provider.Interpret(divinationType, result, question)
+		}
+
+		// Step 1: Resolve default profile
+		profile, err := s.profiles.DefaultProfile("meihua")
+		if err != nil {
+			log.Warn().
+				Err(err).
+				Str("divination_type", "meihua").
+				Msg("streamInterpretation: DefaultProfile failed, falling back to legacy template")
+			return s.provider.Interpret(divinationType, result, question)
+		}
+		log.Info().
+			Str("profile_id", s.profiles.DefaultBindings["meihua"]).
+			Str("profile_name", profile.Name).
+			Str("profile_version", profile.Version).
+			Msg("streamInterpretation: profile resolved ✓")
+
+		// Step 2: Parse facts from result JSON
+		facts, err := ParseFacts("meihua", result, question)
+		if err != nil {
+			log.Warn().
+				Err(err).
+				Msg("streamInterpretation: ParseFacts failed, falling back to legacy template")
+			return s.provider.Interpret(divinationType, result, question)
+		}
+		log.Info().
+			Int("fact_count", len(facts)).
+			Strs("fact_keys", factKeysList(facts)).
+			Msg("streamInterpretation: facts parsed ✓")
+
+		// Step 3: Compose system + user messages
+		messages, err := Compose(profile, InterpretationInput{
+			DivinationType: "meihua",
+			Question:       question,
+			ResultJSON:     result,
+			ResultFacts:    facts,
+			Mode:           "direct",
+		})
+		if err != nil {
+			log.Warn().
+				Err(err).
+				Msg("streamInterpretation: Compose failed, falling back to legacy template")
+			return s.provider.Interpret(divinationType, result, question)
+		}
+		log.Info().
+			Int("system_chars", len([]rune(messages.System))).
+			Int("user_chars", len([]rune(messages.User))).
+			Str("mode", "direct").
+			Msg("streamInterpretation: Compose succeeded ✓")
+
+		return s.provider.ChatCompletion([]map[string]string{
+			{"role": "system", "content": messages.System},
+			{"role": "user", "content": messages.User},
+		})
+	}
+
+	// Fallback: legacy template-based prompt
+	log.Debug().
+		Str("divination_type", divinationType).
+		Msg("streamInterpretation: using legacy template prompt (no Compose route defined)")
 	return s.provider.Interpret(divinationType, result, question)
+}
+
+// truncateForLog truncates a string for log display.
+func truncateForLog(s string, maxLen int) string {
+	runes := []rune(s)
+	if len(runes) <= maxLen {
+		return s
+	}
+	return string(runes[:maxLen]) + "..."
+}
+
+// factKeysList returns the keys of a facts map as a sorted slice for logging.
+func factKeysList(facts map[string]string) []string {
+	keys := make([]string, 0, len(facts))
+	for k := range facts {
+		keys = append(keys, k)
+	}
+	return keys
 }
 
 func isIncompleteAIReading(reading string) bool {

@@ -14,7 +14,7 @@ import (
 )
 
 // SetupRouter initializes all routes and returns a Gin engine.
-func SetupRouter(db *gorm.DB, cfg *config.Config, logger zerolog.Logger) *gin.Engine {
+func SetupRouter(db *gorm.DB, cfg *config.Config, logger zerolog.Logger, profiles *config.ProfilesConfig) *gin.Engine {
 	r := gin.New()
 
 	// Set mode
@@ -102,7 +102,7 @@ func SetupRouter(db *gorm.DB, cfg *config.Config, logger zerolog.Logger) *gin.En
 		logger.Warn().Msg("AI provider disabled: ZHANBU_AI_API_KEY is not set")
 	}
 
-	aiService := service.NewAIService(aiProvider, divinationRepo)
+	aiService := service.NewAIService(aiProvider, divinationRepo, profiles)
 	aiHandler := handler.NewAIHandler(aiService)
 	aiGroup := r.Group("/api/ai")
 	aiGroup.Use(authMiddleware)
@@ -145,7 +145,7 @@ func SetupRouter(db *gorm.DB, cfg *config.Config, logger zerolog.Logger) *gin.En
 
 	// MeiHua (梅花易数) routes
 	meihuaService := service.NewMeiHuaService()
-	meihuaHandler := handler.NewMeiHuaHandler(meihuaService, divinationRepo)
+	meihuaHandler := handler.NewMeiHuaHandler(meihuaService, divinationRepo, profiles)
 	meihuaGroup := r.Group("/api/meihua")
 	meihuaGroup.Use(authMiddleware)
 	{
@@ -166,15 +166,17 @@ func SetupRouter(db *gorm.DB, cfg *config.Config, logger zerolog.Logger) *gin.En
 
 	// Chat routes (authenticated)
 	chatRepo := repository.NewChatRepository(db)
-	chatService := service.NewChatService(chatRepo, divinationRepo, aiProvider)
-	chatService.SetDivinationStarter(service.NewChatModeStarter(
+	chatService := service.NewChatService(chatRepo, divinationRepo, aiProvider, profiles)
+	starter := service.NewChatModeStarter(
 		divinationRepo,
 		tarotService,
 		liuyaoV2Service,
 		baziService,
 		horoscopeService,
 		meihuaService,
-	))
+	)
+	starter.SetProfiles(profiles)
+	chatService.SetDivinationStarter(starter)
 	chatHandler := handler.NewChatHandler(chatService)
 	chatGroup := r.Group("/api/chat")
 	chatGroup.Use(authMiddleware)

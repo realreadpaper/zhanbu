@@ -56,6 +56,7 @@ export default function ChatContainer({
   const chatAreaRef = useRef<HTMLDivElement>(null)
   const [showScrollButton, setShowScrollButton] = useState(false)
   const persona = getDivinationPersona(selectedType)
+  const profileDisplayName = record?.prompt_profile_name || persona.name
   const isInitialRitual = isLoading && !session && messages.length === 0
   const prevTypeRef = useRef(selectedType)
 
@@ -130,7 +131,7 @@ export default function ChatContainer({
         <div>
           <div className="text-sm font-semibold text-slate-200 flex items-center gap-2">
             <span>{persona.icon}</span>
-            <span>{persona.name}</span>
+            <span>{profileDisplayName}</span>
           </div>
           <div className="text-xs text-slate-500">
             {session ? persona.subtitle : '选择占卜方式开始'}
@@ -219,6 +220,7 @@ export default function ChatContainer({
                 message={msg}
                 isStreaming={isStreaming && index === messages.length - 1 && msg.role === 'assistant'}
                 divinationType={selectedType}
+                profileName={record?.prompt_profile_name}
               />
               {showResultAfterMessage && <DivinationResultCard record={record} />}
             </div>
